@@ -1,4 +1,4 @@
-package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
+﻿package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
 
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionToolbar;
@@ -46,6 +46,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
     public TextBodyPanel() {
         super(new BorderLayout());
         this.textBodyStyling = new TextBodyStyling();
+        setOpaque(false);
 
         // 1. 顶部工具栏
         ActionManager actionManager = ActionManager.getInstance();
@@ -60,11 +61,17 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         // 2. 中央内容区（使用 CardLayout）
         textBodyContentLayout = new CardLayout();
         textBodyContentPanel = new JBPanel<>(textBodyContentLayout);
+        textBodyContentPanel.setOpaque(false);
 
         // 2.1 内容卡片：正文
         textBodyPane = new JTextPane();
         textBodyPane.setEditable(false);
-        textBodyContentPanel.add(new JBScrollPane(textBodyPane), CARD_CONTENT);
+        textBodyPane.setOpaque(false);
+
+        JBScrollPane textScrollPane = new JBScrollPane(textBodyPane);
+        textScrollPane.setOpaque(false);
+        textScrollPane.getViewport().setOpaque(false);
+        textBodyContentPanel.add(textScrollPane, CARD_CONTENT);
 
         // 2.2 错误卡片
         textBodyContentPanel.add(wrapCentered(createErrorLabel()), CARD_ERROR);
@@ -93,7 +100,8 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
      */
     private JBPanel<?> wrapCentered(JComponent component) {
         JBPanel<?> wrapper = new JBPanel<>(new GridBagLayout());
-        wrapper.add(component);
+        wrapper.setOpaque(false);
+wrapper.add(component);
         return wrapper;
     }
 

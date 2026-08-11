@@ -1,4 +1,4 @@
-package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow;
+﻿package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow;
 
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.components.JBPanel;
@@ -68,6 +68,7 @@ public class MainReaderPanel extends UIEventSubscriber {
     private void createRootPanel() {
         mainCardLayout = new CardLayout();
         rootPanel = new JBPanel<>(mainCardLayout);
+        rootPanel.setOpaque(false);
 
         // 创建书架面板（传入书籍选择回调）
         bookshelfPanel = new BookshelfPanel();

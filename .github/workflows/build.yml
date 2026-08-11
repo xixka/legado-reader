@@ -1,0 +1,53 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['*']
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Plugin
+        run: ./gradlew buildPlugin
+
+      - name: Upload Plugin Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: legado-reader-plugin
+          path: build/distributions/*.zip
+
+      - name: Upload to Release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'dev' }}
+          name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'Dev Build' }}
+          body: |
+            自动构建
+
+            Commit: ${{ github.sha }}
+            Build: #${{ github.run_number }}
+            时间: ${{ github.run_started_at }} UTC
+          files: build/distributions/*.zip
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

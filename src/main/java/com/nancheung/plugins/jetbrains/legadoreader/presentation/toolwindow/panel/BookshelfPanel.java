@@ -1,4 +1,4 @@
-package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
+﻿package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
 
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
@@ -69,6 +69,7 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
     // ==================== 构造函数 ====================
     public BookshelfPanel() {
         super(new BorderLayout());
+        setOpaque(false);
 
         // 1. 创建地址栏组件，传入加载动作和回调
         addressBarPanel = new AddressBarPanel<>(ApiUtil::getBookshelf, this::handleBooksLoaded, this::handleLoadFailed);
@@ -77,10 +78,15 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         // 2. 中央内容区（使用 CardLayout 切换内容/错误）
         bookshelfContentLayout = new CardLayout();
         bookshelfContentPanel = new JBPanel<>(bookshelfContentLayout);
+        bookshelfContentPanel.setOpaque(false);
 
         // 2.1 内容卡片：书架表格
         bookshelfTable = createBookshelfTable();
-        bookshelfContentPanel.add(new JBScrollPane(bookshelfTable), CARD_CONTENT);
+        bookshelfTable.setOpaque(false);
+        JBScrollPane shelfScrollPane = new JBScrollPane(bookshelfTable);
+        shelfScrollPane.setOpaque(false);
+        shelfScrollPane.getViewport().setOpaque(false);
+        bookshelfContentPanel.add(shelfScrollPane, CARD_CONTENT);
 
         // 2.2 错误卡片：错误提示
         bookshelfContentPanel.add(wrapCentered(createErrorLabel()), CARD_ERROR);
@@ -123,7 +129,8 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
      */
     private JBPanel<?> wrapCentered(JComponent component) {
         JBPanel<?> wrapper = new JBPanel<>(new GridBagLayout());
-        wrapper.add(component);
+        wrapper.setOpaque(false);
+wrapper.add(component);
         return wrapper;
     }
 

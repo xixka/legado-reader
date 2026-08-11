@@ -1,4 +1,4 @@
-package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
+﻿package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
 
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.ui.ComboBox;
@@ -49,6 +49,7 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
      * @param onLoadFailed    加载失败回调（在 EDT 线程执行）
      */
     public AddressBarPanel(Supplier<T> loadAction, Consumer<T> onLoadSucceeded, Runnable onLoadFailed) {
+        setOpaque(false);
         this.loadAction = loadAction;
         this.onLoadSucceeded = onLoadSucceeded;
         this.onLoadFailed = onLoadFailed;
