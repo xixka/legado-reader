@@ -1,4 +1,4 @@
-﻿package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
+package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
 
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionToolbar;

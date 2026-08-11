@@ -1,4 +1,4 @@
-﻿package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
+package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
 
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;

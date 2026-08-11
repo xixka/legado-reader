@@ -1,4 +1,4 @@
-﻿package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow;
+package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow;
 
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.components.JBPanel;
