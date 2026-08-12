@@ -177,22 +177,6 @@ public final class OfflineCacheService {
         meta.setSourceAddress(AddressHistoryStorage.getInstance().getMostRecent());
         storage.saveMeta(meta);
 
-        // 2. 加载或创建进度位图
-        BookCacheProgress progress = storage.loadProgress(bookUrl);
-        BitSet bitmap;
-        if (progress != null && progress.getTotalChapters() == total) {
-            bitmap = BookCacheProgress.base64ToBitmap(progress.getCachedBitmap());
-        } else {
-            bitmap = new BitSet(total);
-            progress = new BookCacheProgress();
-            progress.setBookUrl(bookUrl);
-            progress.setTotalChapters(total);
-            progress.setCachedChapters(0);
-            progress.setCachedBitmap(BookCacheProgress.bitmapToBase64(bitmap));
-            progress.setLastCacheTime(System.currentTimeMillis());
-            progress.setStatus(BookCacheProgress.STATUS_INCOMPLETE);
-        }
-
         // 3. 发布开始事件
         publisher.publish(CacheEvent.started(commandId, bookUrl, book.getName(), total));
 
@@ -202,6 +186,25 @@ public final class OfflineCacheService {
 
         // 5. 启动异步任务
         return CompletableFuture.runAsync(() -> {
+            // 2. 加载或创建进度位图（final 单次赋值，保证 lambda 内 effectively final）
+            final BitSet bitmap;
+            final BookCacheProgress progress;
+            BookCacheProgress loaded = storage.loadProgress(bookUrl);
+            if (loaded != null && loaded.getTotalChapters() == total) {
+                bitmap = BookCacheProgress.base64ToBitmap(loaded.getCachedBitmap());
+                progress = loaded;
+            } else {
+                bitmap = new BitSet(total);
+                BookCacheProgress fresh = new BookCacheProgress();
+                fresh.setBookUrl(bookUrl);
+                fresh.setTotalChapters(total);
+                fresh.setCachedChapters(0);
+                fresh.setCachedBitmap(BookCacheProgress.bitmapToBase64(bitmap));
+                fresh.setLastCacheTime(System.currentTimeMillis());
+                fresh.setStatus(BookCacheProgress.STATUS_INCOMPLETE);
+                progress = fresh;
+            }
+
             try {
                 AtomicInteger cachedCount = new AtomicInteger(bitmap.cardinality());
 
