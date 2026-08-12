@@ -129,6 +129,9 @@ public class MainReaderPanel extends UIEventSubscriber {
         currentCard = CARD_BOOKSHELF;
         mainCardLayout.show(rootPanel, CARD_BOOKSHELF);
         textBodyVisible = false;
+        if (textBodyPanel != null) {
+            textBodyPanel.setContentVisible(false);
+        }
         updateTitleActions();
     }
 
@@ -143,6 +146,9 @@ public class MainReaderPanel extends UIEventSubscriber {
         currentCard = CARD_TEXT_BODY;
         mainCardLayout.show(rootPanel, CARD_TEXT_BODY);
         textBodyVisible = true;
+        if (textBodyPanel != null) {
+            textBodyPanel.setContentVisible(true);
+        }
         updateTitleActions();
     }
 
@@ -155,6 +161,9 @@ public class MainReaderPanel extends UIEventSubscriber {
         chapterListPanel.refreshChapters();
         mainCardLayout.show(rootPanel, CARD_CHAPTER_LIST);
         textBodyVisible = true;
+        if (textBodyPanel != null) {
+            textBodyPanel.setContentVisible(true);
+        }
         updateTitleActions();
     }
 

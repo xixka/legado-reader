@@ -35,6 +35,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
     private final JBScrollPane textScrollPane;
     private final JBPanel<?> textBodyContentPanel;
     private final CardLayout textBodyContentLayout;
+    private boolean contentVisible = false;
 
     // ==================== 样式管理器 ====================
     private final TextBodyStyling textBodyStyling;
@@ -146,6 +147,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
     public void scrollToPosition(int position) {
         try {
             Rectangle viewRect = textBodyPane.modelToView2D(position).getBounds();
+            if (viewRect == null) return;
             JViewport viewport = textScrollPane.getViewport();
             viewport.setViewPosition(new Point(0, viewRect.y));
         } catch (BadLocationException e) {
@@ -161,6 +163,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
     public int pageDown() {
         JViewport viewport = textScrollPane.getViewport();
         int viewHeight = viewport.getExtentSize().height;
+        if (viewHeight <= 0) return -1;
         int viewTop = viewport.getViewPosition().y;
         int viewBottom = viewTop + viewHeight;
 
@@ -169,24 +172,24 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             if (totalLen == 0) return -1;
 
             // 找到 viewport 底部像素位置对应的字符偏移（可能在一行中间）
-            float pixelY = viewBottom;
-            int pos = findPositionAtY(pixelY);
+            int pos = findPositionAtY(viewBottom);
 
             // 获取该位置所在行的 baseline
             Rectangle rect = textBodyPane.modelToView2D(pos).getBounds();
-            int lastVisibleLineBaseline = rect.y;
-            int lastVisibleLineHeight = rect.height;
+            if (rect == null) return -1;
+            int lineTop = rect.y;
+            int lineHeight = rect.height;
 
             // 判断此行是否完整可见（行底部 ≤ viewBottom）
-            if ((lastVisibleLineBaseline + lastVisibleLineHeight) > viewBottom) {
-                // 行不完整，从上一行的行首开始
-                int prevLineEnd = findPositionAtY(lastVisibleLineBaseline - 1);
-                pos = prevLineEnd;
+            if ((lineTop + lineHeight) > viewBottom) {
+                // 行不完整，回退到上一行末尾
+                pos = findPositionAtY(lineTop - 1);
+                if (pos <= 0) pos = 0;
             }
 
             // 确保跳过了当前 viewport 内的内容（至少推进一行）
-            if (pos <= findPositionAtY(viewTop + 1)) {
-                // 找下一行开头
+            int topPos = findPositionAtY(viewTop + 1);
+            if (pos <= topPos) {
                 pos = findNextLineStart(pos, totalLen);
             }
 
@@ -234,14 +237,15 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
     public boolean canPageDown() {
         JViewport viewport = textScrollPane.getViewport();
         int viewHeight = viewport.getExtentSize().height;
+        if (viewHeight <= 0) return false;
         Rectangle viewRect = viewport.getViewRect();
         int viewBottom = viewRect.y + viewHeight;
 
         try {
             int totalLen = textBodyPane.getDocument().getLength();
+            if (totalLen == 0) return false;
             Rectangle lastRect = textBodyPane.modelToView2D(totalLen - 1).getBounds();
             if (lastRect == null) return false;
-            // 文档底部的 Y + 行高 <= viewport 底部 → 到底了
             return (lastRect.y + lastRect.height) > viewBottom;
         } catch (BadLocationException e) {
             return false;
@@ -273,6 +277,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         while (pos < totalLen) {
             try {
                 Rectangle rect = textBodyPane.modelToView2D(pos).getBounds();
+                if (rect == null) { pos++; continue; }
                 int lineBaseline = rect.y;
                 // 往前扫到这一行的真正开头
                 int lineStart = pos;
@@ -285,7 +290,6 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
                         break;
                     }
                 }
-                // 再往后找下一行的第一个字符
                 return findNextLineStartAfter(lineStart, totalLen);
             } catch (BadLocationException e) {
                 pos++;
@@ -305,7 +309,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
 
             for (int i = lineStart + 1; i < totalLen; i++) {
                 Rectangle r = textBodyPane.modelToView2D(i).getBounds();
-                if (r == null) continue;
+                if (r == null || r.y == currentBaseline) continue;
                 if (r.y > currentBaseline) return i;
             }
         } catch (BadLocationException ignored) {}
@@ -346,7 +350,17 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
      *
      * @return true 如果内容可见
      */
+    /**
+     * 获取当前是否处于可见（正文）状态
+     */
     public boolean isContentVisible() {
-        return this.isVisible();
+        return contentVisible;
+    }
+
+    /**
+     * 设置面板的可见状态（由 MainReaderPanel 控制）
+     */
+    public void setContentVisible(boolean visible) {
+        this.contentVisible = visible;
     }
 }

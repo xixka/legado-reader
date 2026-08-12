@@ -2,7 +2,6 @@ package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow;
 
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
@@ -51,7 +50,7 @@ public class MainReaderPanelFactory implements ToolWindowFactory {
         if (actionGroup == null) {
             return Collections.emptyList();
         }
-        AnAction[] children = actionGroup.getChildren((AnActionEvent) null);
+        AnAction[] children = actionGroup.getChildActionsOrStubs();
         return Arrays.asList(children);
     }
 }
