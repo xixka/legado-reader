@@ -56,10 +56,14 @@ public class MainReaderPanel extends UIEventSubscriber {
      */
     private ToolWindow toolWindow;
     /**
-     * 正文阅读工具栏按钮组（返回书架 / 上下章 / 上下页 / 章节列表）。
-     * 仅在显示正文面板或章节列表面板时挂到 ToolWindow 标题栏右侧；书架面板时清空。
+     * 正文阅读工具栏按钮组（返回 / 上下章 / 上下页 / 章节列表）。
+     * 仅在正文面板或章节列表面板时挂到 ToolWindow 标题栏右侧；书架面板时清空。
      */
     private List<AnAction> titleActions = Collections.emptyList();
+    /**
+     * 当前显示的卡片（用来让返回按钮知道跳哪里：章节列表→正文，正文→书架）
+     */
+    private String currentCard = CARD_BOOKSHELF;
     /**
      * 当前是否处于正文面板或章节列表面板（决定 titleActions 是否挂载）
      */
@@ -122,6 +126,7 @@ public class MainReaderPanel extends UIEventSubscriber {
      * 显示书架面板
      */
     public void showBookshelfPanel() {
+        currentCard = CARD_BOOKSHELF;
         mainCardLayout.show(rootPanel, CARD_BOOKSHELF);
         textBodyVisible = false;
         updateTitleActions();
@@ -131,6 +136,7 @@ public class MainReaderPanel extends UIEventSubscriber {
      * 显示正文面板
      */
     public void showTextBodyPanel() {
+        currentCard = CARD_TEXT_BODY;
         mainCardLayout.show(rootPanel, CARD_TEXT_BODY);
         textBodyVisible = true;
         updateTitleActions();
@@ -141,6 +147,7 @@ public class MainReaderPanel extends UIEventSubscriber {
      * 调用前会刷新章节列表以确保数据最新
      */
     public void showChapterListPanel() {
+        currentCard = CARD_CHAPTER_LIST;
         chapterListPanel.refreshChapters();
         mainCardLayout.show(rootPanel, CARD_CHAPTER_LIST);
         textBodyVisible = true;
@@ -194,6 +201,13 @@ public class MainReaderPanel extends UIEventSubscriber {
      */
     public JComponent getComponent() {
         return rootPanel;
+    }
+
+    /**
+     * 获取当前显示的卡片标识
+     */
+    public String getCurrentCard() {
+        return currentCard;
     }
 
     /**

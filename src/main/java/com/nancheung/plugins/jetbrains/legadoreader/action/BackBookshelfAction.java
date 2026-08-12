@@ -9,16 +9,15 @@ public class BackBookshelfAction extends AnAction {
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
-        backBookshelf();
-    }
-
-    private void backBookshelf() {
         MainReaderPanel mainPanel = MainReaderPanel.getInstance();
+        String currentCard = mainPanel.getCurrentCard();
 
-        // 刷新书架
-        mainPanel.getBookshelfPanel().refreshBookshelf();
-
-        // 显示书架面板
-        mainPanel.showBookshelfPanel();
+        // 章节列表 → 返回正文；正文 → 返回书架
+        if ("CHAPTER_LIST".equals(currentCard)) {
+            mainPanel.showTextBodyPanel();
+        } else {
+            mainPanel.getBookshelfPanel().refreshBookshelf();
+            mainPanel.showBookshelfPanel();
+        }
     }
 }
