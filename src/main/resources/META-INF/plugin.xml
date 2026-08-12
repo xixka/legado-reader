@@ -68,6 +68,9 @@
             <reference id="com.nancheung.legado-reader.action.previousChapter"/>
             <reference id="com.nancheung.legado-reader.action.nextChapter"/>
             <separator/>
+            <reference id="com.nancheung.legado-reader.action.previousPage"/>
+            <reference id="com.nancheung.legado-reader.action.nextPage"/>
+            <separator/>
             <action id="com.nancheung.legado-reader.action.showBookInfo" class="com.nancheung.plugins.jetbrains.legadoreader.action.ShowBookInfoAction"
                     text="当前阅读信息" icon="/icons/showBookInfo.svg"/>
         </group>

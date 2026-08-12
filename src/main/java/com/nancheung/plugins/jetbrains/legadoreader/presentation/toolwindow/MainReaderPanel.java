@@ -1,12 +1,9 @@
 package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow;
 
+import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.ui.components.JBPanel;
-import com.nancheung.plugins.jetbrains.legadoreader.api.dto.BookDTO;
-import com.nancheung.plugins.jetbrains.legadoreader.command.Command;
-import com.nancheung.plugins.jetbrains.legadoreader.command.CommandBus;
-import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
-import com.nancheung.plugins.jetbrains.legadoreader.command.payload.SelectBookPayload;
 import com.nancheung.plugins.jetbrains.legadoreader.event.PaginationEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.event.ReadingEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.event.SettingsChangedEvent;
@@ -20,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.Collections;
+import java.util.List;
 
 @Slf4j
 @Getter
@@ -45,6 +44,23 @@ public class MainReaderPanel extends UIEventSubscriber {
 
     // ==================== 样式管理器 ====================
     private final TextBodyStyling textBodyStyling = new TextBodyStyling();
+
+    // ==================== ToolWindow 标题栏按钮（动态切换） ====================
+    /**
+     * 当前绑定的 ToolWindow。
+     * 由于 MainReaderPanel 为单例，多项目场景下该引用会被后打开的项目覆盖，
+     * 与现有"多窗口共享状态"设计保持一致。
+     */
+    private ToolWindow toolWindow;
+    /**
+     * 正文阅读工具栏按钮组（返回书架 / 上下章 / 上下页 / 当前阅读信息）。
+     * 仅在显示正文面板时挂到 ToolWindow 标题栏右侧；书架面板时清空。
+     */
+    private List<AnAction> titleActions = Collections.emptyList();
+    /**
+     * 当前是否处于正文面板（决定 titleActions 是否挂载）
+     */
+    private boolean textBodyVisible = false;
 
     // ==================== 构造函数 ====================
     public MainReaderPanel() {
@@ -100,6 +116,8 @@ public class MainReaderPanel extends UIEventSubscriber {
      */
     public void showBookshelfPanel() {
         mainCardLayout.show(rootPanel, CARD_BOOKSHELF);
+        textBodyVisible = false;
+        updateTitleActions();
     }
 
     /**
@@ -107,6 +125,48 @@ public class MainReaderPanel extends UIEventSubscriber {
      */
     public void showTextBodyPanel() {
         mainCardLayout.show(rootPanel, CARD_TEXT_BODY);
+        textBodyVisible = true;
+        updateTitleActions();
+    }
+
+    // ==================== ToolWindow 标题栏按钮管理 ====================
+
+    /**
+     * 绑定 ToolWindow（由 MainReaderPanelFactory 在创建 ToolWindow 内容时调用）
+     */
+    public void setToolWindow(ToolWindow toolWindow) {
+        this.toolWindow = toolWindow;
+        updateTitleActions();
+    }
+
+    /**
+     * 设置正文阅读工具栏按钮组
+     */
+    public void setTitleActions(List<AnAction> titleActions) {
+        this.titleActions = titleActions == null ? Collections.emptyList() : titleActions;
+        updateTitleActions();
+    }
+
+    /**
+     * 根据当前卡片动态挂载/卸载 ToolWindow 标题栏按钮
+     * - 正文面板：挂载按钮组（放在标题 "Reader" 后面）
+     * - 书架面板：清空按钮组
+     */
+    private void updateTitleActions() {
+        if (toolWindow == null) {
+            return;
+        }
+        // ToolWindow 的 setTitleActions 必须在 EDT 调用
+        ApplicationManager.getApplication().invokeLater(() -> {
+            if (toolWindow == null) {
+                return;
+            }
+            if (textBodyVisible && titleActions != null && !titleActions.isEmpty()) {
+                toolWindow.setTitleActions(titleActions);
+            } else {
+                toolWindow.setTitleActions(Collections.emptyList());
+            }
+        });
     }
 
     // ==================== 公共接口方法 ====================
