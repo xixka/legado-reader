@@ -96,18 +96,18 @@ public final class AddressHistoryStorage implements PersistentStateComponent<Add
      * @param address 地址
      */
     public void addAddress(String address) {
-        address = normalizeAddress(address);
-        if (address == null || address.isEmpty()) {
+        String normalized = normalizeAddress(address);
+        if (normalized == null || normalized.isEmpty()) {
             return;
         }
 
         State currentState = getState();
 
         // 移除已存在的相同地址
-        currentState.items.removeIf(item -> normalizeAddress(item.address).equals(address));
+        currentState.items.removeIf(item -> normalizeAddress(item.address).equals(normalized));
 
         // 添加到最前面
-        HistoryItemState newItem = new HistoryItemState(address, System.currentTimeMillis());
+        HistoryItemState newItem = new HistoryItemState(normalized, System.currentTimeMillis());
         currentState.items.addFirst(newItem);
 
         // 限制数量
