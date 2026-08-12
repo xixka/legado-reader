@@ -4,15 +4,13 @@ import com.nancheung.plugins.jetbrains.legadoreader.command.Command;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandBus;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.CommandPayload;
-import com.nancheung.plugins.jetbrains.legadoreader.event.EventPublisher;
-import com.nancheung.plugins.jetbrains.legadoreader.event.PaginationEvent;
-import com.nancheung.plugins.jetbrains.legadoreader.service.IPaginationManager;
-import com.nancheung.plugins.jetbrains.legadoreader.service.PaginationManager;
+import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.MainReaderPanel;
+import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.TextBodyPanel;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * 上一页指令处理器
- * 处理页内翻页，到达第一页时自动触发上一章
+ * 按视口高度逐行向上翻页，到达顶部时触发上一章
  *
  * @author NanCheung
  */
@@ -26,36 +24,28 @@ public class PreviousPageHandler implements CommandHandler<CommandPayload> {
 
     @Override
     public void handle(Command command) {
-        PaginationManager paginationManager = PaginationManager.getInstance();
-        EventPublisher publisher = EventPublisher.getInstance();
-
-        IPaginationManager.PageData currentPage = paginationManager.getCurrentPage();
-
-        if (currentPage == null) {
-            log.warn("当前没有分页数据");
+        MainReaderPanel mainPanel = MainReaderPanel.getInstance();
+        if (mainPanel == null) {
+            log.warn("MainReaderPanel 未初始化");
             return;
         }
 
-        int totalPages = paginationManager.getTotalPages();
-        int currentPageIndex = currentPage.pageIndex();
-
-        if (currentPageIndex > 0) {
-            // 页内翻页
-            IPaginationManager.PageData prevPage = paginationManager.previousPage();
-
-            if (prevPage != null) {
-                publisher.publish(PaginationEvent.pageChanged(
-                        prevPage.pageIndex() + 1,
-                        totalPages,
-                        prevPage.content()
-                ));
-                log.debug("翻到上一页: {}/{}", prevPage.pageIndex() + 1, totalPages);
-            }
-
-        } else {
-            // 第一页，触发上一章
-            log.debug("已经是第一页，切换到上一章");
-            CommandBus.getInstance().dispatch(Command.of(CommandType.PREVIOUS_CHAPTER));
+        TextBodyPanel textBodyPanel = mainPanel.getTextBodyPanel();
+        if (textBodyPanel == null || !textBodyPanel.isContentVisible()) {
+            log.debug("正文面板不可见，跳过翻页");
+            return;
         }
+
+        if (textBodyPanel.canPageUp()) {
+            int newPos = textBodyPanel.pageUp();
+            if (newPos >= 0) {
+                log.debug("向上翻页完成，跳转到位置 {}", newPos);
+                return;
+            }
+        }
+
+        // 已经到顶部，触发上一章
+        log.debug("已到当前章节顶部，切换到上一章");
+        CommandBus.getInstance().dispatch(Command.of(CommandType.PREVIOUS_CHAPTER));
     }
 }

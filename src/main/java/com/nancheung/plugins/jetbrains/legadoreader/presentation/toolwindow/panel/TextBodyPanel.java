@@ -7,6 +7,7 @@ import com.intellij.ui.components.JBScrollPane;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.styling.TextBodyStyling;
 
 import javax.swing.*;
+import javax.swing.text.BadLocationException;
 import java.awt.*;
 
 /**
@@ -146,11 +147,176 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         try {
             Rectangle viewRect = textBodyPane.modelToView2D(position).getBounds();
             JViewport viewport = textScrollPane.getViewport();
-            // 将目标行的顶部对齐到视口顶部，实现无动画的瞬间覆盖翻页
             viewport.setViewPosition(new Point(0, viewRect.y));
-        } catch (javax.swing.text.BadLocationException e) {
+        } catch (BadLocationException e) {
             // 忽略无效位置
         }
+    }
+
+    /**
+     * 向下翻一页（按视口高度逐行计算，部分可见的行不计入）
+     *
+     * @return 跳转后的行首字符偏移；已到底则返回 -1
+     */
+    public int pageDown() {
+        JViewport viewport = textScrollPane.getViewport();
+        int viewHeight = viewport.getExtentSize().height;
+        int viewTop = viewport.getViewPosition().y;
+        int viewBottom = viewTop + viewHeight;
+
+        try {
+            int totalLen = textBodyPane.getDocument().getLength();
+            if (totalLen == 0) return -1;
+
+            // 找到 viewport 底部像素位置对应的字符偏移（可能在一行中间）
+            float pixelY = viewBottom;
+            int pos = findPositionAtY(pixelY);
+
+            // 获取该位置所在行的 baseline
+            Rectangle rect = textBodyPane.modelToView2D(pos).getBounds();
+            int lastVisibleLineBaseline = rect.y;
+            int lastVisibleLineHeight = rect.height;
+
+            // 判断此行是否完整可见（行底部 ≤ viewBottom）
+            if ((lastVisibleLineBaseline + lastVisibleLineHeight) > viewBottom) {
+                // 行不完整，从上一行的行首开始
+                int prevLineEnd = findPositionAtY(lastVisibleLineBaseline - 1);
+                pos = prevLineEnd;
+            }
+
+            // 确保跳过了当前 viewport 内的内容（至少推进一行）
+            if (pos <= findPositionAtY(viewTop + 1)) {
+                // 找下一行开头
+                pos = findNextLineStart(pos, totalLen);
+            }
+
+            if (pos >= totalLen) return -1;
+
+            scrollToPosition(pos);
+            setCaretPosition(pos);
+            return pos;
+        } catch (BadLocationException e) {
+            return -1;
+        }
+    }
+
+    /**
+     * 向上翻一页（按视口高度逐行计算）
+     *
+     * @return 跳转后的行首字符偏移；已到顶则返回 -1
+     */
+    public int pageUp() {
+        JViewport viewport = textScrollPane.getViewport();
+        int viewHeight = viewport.getExtentSize().height;
+        int viewTop = viewport.getViewPosition().y;
+
+        try {
+            int totalLen = textBodyPane.getDocument().getLength();
+            if (totalLen == 0) return -1;
+
+            // 目标位置：从当前 viewport 顶部往上翻一个 viewport 高度
+            float targetY = Math.max(0, viewTop - viewHeight);
+            int pos = findPositionAtY(targetY);
+
+            if (pos <= 0) {
+                scrollToPosition(0);
+                setCaretPosition(0);
+                return 0;
+            }
+
+            scrollToPosition(pos);
+            setCaretPosition(pos);
+            return pos;
+        } catch (BadLocationException e) {
+            return -1;
+        }
+    }
+
+    /**
+     * 检查是否还能继续向下翻页
+     */
+    public boolean canPageDown() {
+        JViewport viewport = textScrollPane.getViewport();
+        int viewHeight = viewport.getExtentSize().height;
+        Rectangle viewRect = viewport.getViewRect();
+        int viewBottom = viewRect.y + viewHeight;
+
+        try {
+            int totalLen = textBodyPane.getDocument().getLength();
+            Rectangle lastRect = textBodyPane.modelToView2D(totalLen - 1).getBounds();
+            if (lastRect == null) return false;
+            // 文档底部的 Y + 行高 <= viewport 底部 → 到底了
+            return (lastRect.y + lastRect.height) > viewBottom;
+        } catch (BadLocationException e) {
+            return false;
+        }
+    }
+
+    /**
+     * 检查是否还能继续向上翻页
+     */
+    public boolean canPageUp() {
+        return textScrollPane.getViewport().getViewPosition().y > 0;
+    }
+
+    // ==================== 内部工具方法 ====================
+
+    /**
+     * 根据像素 Y 坐标找到对应的字符偏移
+     */
+    private int findPositionAtY(float y) {
+        try {
+            return textBodyPane.viewToModel2D(new Point(0, (int) y));
+        } catch (BadLocationException e) {
+            return textBodyPane.getDocument().getLength() - 1;
+        }
+    }
+
+    /**
+     * 从指定位置开始找下一行的行首
+     */
+    private int findNextLineStart(int fromPos, int totalLen) {
+        int pos = fromPos;
+        while (pos < totalLen) {
+            try {
+                Rectangle rect = textBodyPane.modelToView2D(pos).getBounds();
+                int lineBaseline = rect.y;
+                // 往前扫到这一行的真正开头
+                int lineStart = pos;
+                while (lineStart > 0) {
+                    try {
+                        Rectangle prevRect = textBodyPane.modelToView2D(lineStart - 1).getBounds();
+                        if (prevRect == null || prevRect.y != lineBaseline) break;
+                        lineStart--;
+                    } catch (BadLocationException e) {
+                        break;
+                    }
+                }
+                // 再往后找下一行的第一个字符
+                return findNextLineStartAfter(lineStart, totalLen);
+            } catch (BadLocationException e) {
+                pos++;
+            }
+        }
+        return totalLen;
+    }
+
+    /**
+     * 从当前行首往后找下一行开头
+     */
+    private int findNextLineStartAfter(int lineStart, int totalLen) {
+        try {
+            Rectangle currentRect = textBodyPane.modelToView2D(lineStart).getBounds();
+            if (currentRect == null) return totalLen;
+            int currentBaseline = currentRect.y;
+
+            for (int i = lineStart + 1; i < totalLen; i++) {
+                Rectangle r = textBodyPane.modelToView2D(i).getBounds();
+                if (r == null) continue;
+                if (r.y > currentBaseline) return i;
+            }
+        } catch (BadLocationException ignored) {}
+        return totalLen;
     }
 
     /**

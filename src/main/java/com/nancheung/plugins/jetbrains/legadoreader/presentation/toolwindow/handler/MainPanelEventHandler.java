@@ -9,8 +9,6 @@ import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSession;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.MainReaderPanel;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.BookshelfPanel;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.TextBodyPanel;
-import com.nancheung.plugins.jetbrains.legadoreader.service.IPaginationManager;
-import com.nancheung.plugins.jetbrains.legadoreader.service.PaginationManager;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import lombok.extern.slf4j.Slf4j;
 
@@ -66,52 +64,14 @@ public class MainPanelEventHandler {
 
     /**
      * 处理分页事件
+     * <p>
+     * 翻页已改为按视口高度直接跳转（TextBodyPanel.pageDown/pageUp），
+     * 不再依赖 PaginationManager 的预切页。
+     * PaginationEvent 仅由 EditorLine 模式使用，ToolWindow 模式无需处理。
      */
     public void handlePaginationEvent(PaginationEvent event) {
-        // 只处理页码变更事件（PAGE_CHANGED）
-        if (event.type() != PaginationEvent.PaginationEventType.PAGE_CHANGED) {
-            return;
-        }
-
-        // 如果正文面板不可见，跳过（用户可能在书架）
-        if (!textBodyPanel.isContentVisible()) {
-            log.debug("正文面板不可见，跳过光标同步");
-            return;
-        }
-
-        // 获取当前页数据
-        PaginationManager paginationManager = PaginationManager.getInstance();
-        IPaginationManager.PageData currentPage = paginationManager.getCurrentPage();
-
-        if (currentPage == null || currentPage.startPos() < 0) {
-            log.warn("分页事件但无当前页数据或起始位置无效");
-            return;
-        }
-
-        // 获取当前阅读会话以获取标题
-        ReadingSession session = ReadingSessionManager.getInstance().getSession();
-        if (session == null || session.currentContent() == null) {
-            log.debug("无当前阅读会话，跳过光标同步");
-            return;
-        }
-
-        // 计算标题长度（标题 + 换行符）
-        String title = session.chapters().get(session.currentChapterIndex()).getTitle();
-        int titleLength = (title != null && !title.isEmpty()) ? title.length() + 1 : 0;
-
-        // 计算光标位置
-        int caretPosition = titleLength + currentPage.startPos();
-
-        // 限制在有效范围内
-        String currentText = textBodyPanel.getText();
-        caretPosition = Math.min(caretPosition, currentText.length());
-
-        // 设置光标位置并滚动
-        textBodyPanel.setCaretPosition(caretPosition);
-        textBodyPanel.scrollToPosition(caretPosition);
-
-        log.debug("光标同步完成：页码 {}/{}, 光标位置 {}",
-                event.currentPage(), event.totalPages(), caretPosition);
+        // 翻页已由 TextBodyPanel.pageDown()/pageUp() 直接处理
+        // PaginationEvent 仅保留给 EditorLine 模式
     }
 
     /**

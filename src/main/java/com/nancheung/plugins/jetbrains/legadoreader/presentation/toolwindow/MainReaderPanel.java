@@ -135,6 +135,10 @@ public class MainReaderPanel extends UIEventSubscriber {
     /**
      * 显示正文面板
      */
+    public TextBodyPanel getTextBodyPanel() {
+        return textBodyPanel;
+    }
+
     public void showTextBodyPanel() {
         currentCard = CARD_TEXT_BODY;
         mainCardLayout.show(rootPanel, CARD_TEXT_BODY);
