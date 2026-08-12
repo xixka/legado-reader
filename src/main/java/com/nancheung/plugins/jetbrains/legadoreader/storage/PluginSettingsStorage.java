@@ -99,6 +99,17 @@ public final class PluginSettingsStorage implements PersistentStateComponent<Plu
          */
         public Boolean enableShowBodyInLine = false;
 
+        /**
+         * 是否启用离线缓存
+         */
+        public Boolean cacheEnabled = false;
+
+        /**
+         * 离线缓存 AES 密钥（Base64 编码，AES-256 需要 32 字节）
+         * 首次启用缓存时自动生成，对用户透明
+         */
+        public String cacheKey = "";
+
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
@@ -109,13 +120,16 @@ public final class PluginSettingsStorage implements PersistentStateComponent<Plu
                     Objects.equals(textBodyLineHeight, state.textBodyLineHeight) &&
                     Objects.equals(apiCustomParams, state.apiCustomParams) &&
                     Objects.equals(enableErrorLog, state.enableErrorLog) &&
-                    Objects.equals(enableShowBodyInLine, state.enableShowBodyInLine);
+                    Objects.equals(enableShowBodyInLine, state.enableShowBodyInLine) &&
+                    Objects.equals(cacheEnabled, state.cacheEnabled) &&
+                    Objects.equals(cacheKey, state.cacheKey);
         }
 
         @Override
         public int hashCode() {
             return Objects.hash(textBodyFontColor, textBodyFont, textBodyLineHeight,
-                    apiCustomParams, enableErrorLog, enableShowBodyInLine);
+                    apiCustomParams, enableErrorLog, enableShowBodyInLine,
+                    cacheEnabled, cacheKey);
         }
     }
 

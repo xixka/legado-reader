@@ -1,6 +1,7 @@
 package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.handler;
 
 import com.intellij.ui.JBColor;
+import com.nancheung.plugins.jetbrains.legadoreader.event.CacheEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.event.PaginationEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.event.ReadingEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.event.SettingsChangedEvent;
@@ -8,6 +9,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.manager.ReadingSessionManage
 import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSession;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.MainReaderPanel;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.BookshelfPanel;
+import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.CacheProgressPanel;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.TextBodyPanel;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +39,7 @@ public class MainPanelEventHandler {
     private final MainReaderPanel mainPanel;
     private final BookshelfPanel bookshelfPanel;
     private final TextBodyPanel textBodyPanel;
+    private CacheProgressPanel cacheProgressPanel;
 
     // ==================== 构造函数 ====================
     public MainPanelEventHandler(
@@ -46,6 +49,13 @@ public class MainPanelEventHandler {
         this.mainPanel = mainPanel;
         this.bookshelfPanel = bookshelfPanel;
         this.textBodyPanel = textBodyPanel;
+    }
+
+    /**
+     * 设置缓存进度面板引用（由 MainReaderPanel 在创建 CacheProgressPanel 后调用）
+     */
+    public void setCacheProgressPanel(CacheProgressPanel cacheProgressPanel) {
+        this.cacheProgressPanel = cacheProgressPanel;
     }
 
     // ==================== 事件处理方法 ====================
@@ -110,6 +120,18 @@ public class MainPanelEventHandler {
 
         log.debug("字体样式已更新：color={}, font={}, lineHeight={}",
                 fontColor, font.getFamily() + "/" + font.getSize(), lineHeight);
+    }
+
+    /**
+     * 处理离线缓存事件
+     * 委托给 CacheProgressPanel 更新进度展示
+     */
+    public void handleCacheEvent(CacheEvent event) {
+        if (cacheProgressPanel == null) {
+            log.debug("CacheProgressPanel 未注入，跳过缓存事件");
+            return;
+        }
+        cacheProgressPanel.handleCacheEvent(event);
     }
 
     // ==================== 私有处理方法 ====================

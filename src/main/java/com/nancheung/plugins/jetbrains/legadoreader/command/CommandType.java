@@ -63,7 +63,18 @@ public enum CommandType {
     /**
      * 切换阅读模式显示/隐藏
      */
-    TOGGLE_READING_MODE("切换阅读模式");
+    TOGGLE_READING_MODE("切换阅读模式"),
+
+    // ========== 离线缓存指令 ==========
+    /**
+     * 离线缓存书籍（后台异步下载并 AES 加密落盘）
+     */
+    CACHE_BOOK("离线缓存"),
+
+    /**
+     * 取消离线缓存任务
+     */
+    CANCEL_CACHE_BOOK("取消缓存");
 
     private final String description;
 

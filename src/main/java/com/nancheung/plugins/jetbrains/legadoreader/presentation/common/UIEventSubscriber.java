@@ -58,6 +58,7 @@ public abstract class UIEventSubscriber implements ReaderEventListener {
             case ReadingEvent e -> onReadingEvent(e);
             case PaginationEvent e -> onPaginationEvent(e);
             case SettingsChangedEvent e -> onSettingsChangedEvent(e);
+            case CacheEvent e -> onCacheEvent(e);
         }
     }
 
@@ -98,6 +99,16 @@ public abstract class UIEventSubscriber implements ReaderEventListener {
      * @param event 设置变更事件
      */
     protected void onSettingsChangedEvent(SettingsChangedEvent event) {
+        // 子类可选择性重写
+    }
+
+    /**
+     * 处理离线缓存事件
+     * 用于显示缓存进度、状态变更等
+     *
+     * @param event 缓存事件
+     */
+    protected void onCacheEvent(CacheEvent event) {
         // 子类可选择性重写
     }
 }

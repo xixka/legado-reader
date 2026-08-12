@@ -33,6 +33,7 @@ public final class SettingsViewModel {
     private double lineHeight;
     private boolean enableErrorLog;
     private boolean enableInLineMode;
+    private boolean cacheEnabled;
     private final List<CustomParamEntry> customParams = new ArrayList<>();
 
     // 验证器
@@ -56,6 +57,7 @@ public final class SettingsViewModel {
         this.lineHeight = state.textBodyLineHeight;
         this.enableErrorLog = Boolean.TRUE.equals(state.enableErrorLog);
         this.enableInLineMode = Boolean.TRUE.equals(state.enableShowBodyInLine);
+        this.cacheEnabled = Boolean.TRUE.equals(state.cacheEnabled);
 
         // 深拷贝参数列表
         this.customParams.clear();
@@ -78,6 +80,7 @@ public final class SettingsViewModel {
         state.textBodyLineHeight = lineHeight;
         state.enableErrorLog = enableErrorLog;
         state.enableShowBodyInLine = enableInLineMode;
+        state.cacheEnabled = cacheEnabled;
 
         state.apiCustomParams = customParams.stream()
                 .map(e -> new PluginSettingsStorage.CustomParam(e.name(), e.value()))
@@ -106,6 +109,7 @@ public final class SettingsViewModel {
                 || !Objects.equals(lineHeight, state.textBodyLineHeight)
                 || enableErrorLog != Boolean.TRUE.equals(state.enableErrorLog)
                 || enableInLineMode != Boolean.TRUE.equals(state.enableShowBodyInLine)
+                || cacheEnabled != Boolean.TRUE.equals(state.cacheEnabled)
                 || !customParamsEquals(state.apiCustomParams);
     }
 

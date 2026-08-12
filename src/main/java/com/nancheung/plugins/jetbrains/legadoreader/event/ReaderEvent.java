@@ -13,7 +13,8 @@ public sealed interface ReaderEvent permits
         BookshelfEvent,
         ReadingEvent,
         PaginationEvent,
-        SettingsChangedEvent {
+        SettingsChangedEvent,
+        CacheEvent {
 
     /**
      * 事件唯一 ID

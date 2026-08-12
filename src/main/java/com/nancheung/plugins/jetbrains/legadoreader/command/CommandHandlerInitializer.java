@@ -72,6 +72,10 @@ public class CommandHandlerInitializer implements ProjectActivity {
         registry.register(new BackToBookshelfHandler());
         registry.register(new ToggleReadingModeHandler());
 
+        // ========== 离线缓存处理器 ==========
+        registry.register(new CacheBookHandler());
+        registry.register(new CancelCacheBookHandler());
+
         // TODO: 待实现的处理器
         // registry.register(new FetchBookshelfHandler());
         // registry.register(new RefreshBookshelfHandler());

@@ -8,6 +8,14 @@ Legado Reader是 [开源阅读APP](https://github.com/gedoor/legado) 的Jetbrain
 
 ## [Unreleased]
 
+### Added
+
+- :sparkles: feat: 新增离线缓存书籍功能，支持后台 AES-256 加密落盘与断点续传
+- :sparkles: feat: 阅读时优先读取本地缓存，支持离线阅读
+- :sparkles: feat: ToolWindow 底部展示缓存进度面板，支持取消缓存任务
+- :sparkles: feat: 书架右键菜单、章节列表底部按钮均可触发离线缓存
+- :memo: docs: CLAUDE.md 增加离线缓存架构说明
+
 
 ## [1.5.1] - 2025-12-25
 

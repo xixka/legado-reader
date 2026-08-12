@@ -11,6 +11,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.event.ReadingEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.manager.ReadingSessionManager;
 import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSession;
 import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSessionState;
+import com.nancheung.plugins.jetbrains.legadoreader.service.OfflineCacheService;
 import com.nancheung.plugins.jetbrains.legadoreader.service.ReadingSessionStateMachine;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import lombok.extern.slf4j.Slf4j;
@@ -89,7 +90,11 @@ public class NextChapterHandler implements CommandHandler<CommandPayload> {
                 // 7.1 获取章节列表和内容
                 List<BookChapterDTO> chapters = sessionManager.getChapters();
                 BookChapterDTO chapter = chapters.get(nextIndex);
-                String content = ApiUtil.getBookContent(book.getBookUrl(), nextIndex);
+                // 优先从离线缓存读取，未命中再走 API
+                String content = OfflineCacheService.getInstance().tryLoadChapterFromCache(book.getBookUrl(), nextIndex);
+                if (content == null) {
+                    content = ApiUtil.getBookContent(book.getBookUrl(), nextIndex);
+                }
 
                 // 7.2 更新会话
                 sessionManager.nextChapter();

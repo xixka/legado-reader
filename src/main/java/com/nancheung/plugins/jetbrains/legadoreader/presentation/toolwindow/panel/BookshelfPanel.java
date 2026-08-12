@@ -10,7 +10,10 @@ import com.nancheung.plugins.jetbrains.legadoreader.api.dto.BookDTO;
 import com.nancheung.plugins.jetbrains.legadoreader.command.Command;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandBus;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
+import com.nancheung.plugins.jetbrains.legadoreader.command.payload.CacheBookPayload;
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.SelectBookPayload;
+import com.nancheung.plugins.jetbrains.legadoreader.service.OfflineCacheService;
+import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
@@ -146,7 +149,88 @@ wrapper.add(component);
             public void mouseClicked(MouseEvent evt) {
                 handleBookSelection(evt);
             }
+
+            @Override
+            public void mousePressed(MouseEvent evt) {
+                showContextMenuIfNeeded(evt);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent evt) {
+                showContextMenuIfNeeded(evt);
+            }
         });
+    }
+
+    /**
+     * 在右键点击时弹出上下文菜单
+     */
+    private void showContextMenuIfNeeded(MouseEvent evt) {
+        if (!evt.isPopupTrigger()) {
+            return;
+        }
+        int row = bookshelfTable.rowAtPoint(evt.getPoint());
+        if (row < 0) {
+            return;
+        }
+        // 选中该行
+        bookshelfTable.setRowSelectionInterval(row, row);
+
+        BookDTO book = getBookAtRow(row);
+        if (book == null) {
+            return;
+        }
+
+        JPopupMenu popup = new JPopupMenu();
+
+        // 离线缓存菜单项
+        JMenuItem cacheItem = new JMenuItem("离线缓存本书");
+        boolean cacheEnabled = Boolean.TRUE.equals(PluginSettingsStorage.getInstance().getState().cacheEnabled);
+        cacheItem.setEnabled(cacheEnabled);
+        if (!cacheEnabled) {
+            cacheItem.setToolTipText("请在设置中开启离线缓存");
+        }
+        if (OfflineCacheService.getInstance().isCacheRunning(book.getBookUrl())) {
+            cacheItem.setText("正在缓存中...");
+            cacheItem.setEnabled(false);
+        }
+        cacheItem.addActionListener(e -> triggerBookCache(book));
+        popup.add(cacheItem);
+
+        // 取消缓存菜单项（仅当该任务运行中时启用）
+        JMenuItem cancelItem = new JMenuItem("取消缓存");
+        cancelItem.setEnabled(OfflineCacheService.getInstance().isCacheRunning(book.getBookUrl()));
+        cancelItem.addActionListener(e -> CommandBus.getInstance().dispatchAsync(
+                Command.of(CommandType.CANCEL_CACHE_BOOK)
+        ));
+        popup.add(cancelItem);
+
+        popup.show(bookshelfTable, evt.getX(), evt.getY());
+    }
+
+    /**
+     * 触发某本书的离线缓存
+     */
+    private void triggerBookCache(BookDTO book) {
+        // 不预先获取章节列表，由 handler 内部异步获取
+        CommandBus.getInstance().dispatchAsync(Command.of(
+                CommandType.CACHE_BOOK,
+                new CacheBookPayload(book, null)
+        ));
+        log.info("已请求离线缓存：book={}", book.getName());
+    }
+
+    /**
+     * 通过表格行号获取书籍
+     */
+    private BookDTO getBookAtRow(int row) {
+        if (row < 0) {
+            return null;
+        }
+        TableModel model = bookshelfTable.getModel();
+        String name = String.valueOf(model.getValueAt(row, 0));
+        String author = String.valueOf(model.getValueAt(row, 3));
+        return getBook(author, name);
     }
 
     // ==================== 状态切换方法 ====================

@@ -9,5 +9,6 @@ package com.nancheung.plugins.jetbrains.legadoreader.command.payload;
 public sealed interface CommandPayload permits
         SelectBookPayload,
         JumpToChapterPayload,
-        RefreshBookshelfPayload {
+        RefreshBookshelfPayload,
+        CacheBookPayload {
 }

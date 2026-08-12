@@ -4,6 +4,7 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.ui.components.JBPanel;
+import com.nancheung.plugins.jetbrains.legadoreader.event.CacheEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.event.PaginationEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.event.ReadingEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.event.SettingsChangedEvent;
@@ -11,6 +12,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.presentation.common.UIEventS
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.styling.TextBodyStyling;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.TextBodyPanel;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.BookshelfPanel;
+import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.CacheProgressPanel;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.ChapterListPanel;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.handler.MainPanelEventHandler;
 import lombok.Getter;
@@ -32,12 +34,14 @@ public class MainReaderPanel extends UIEventSubscriber {
 
     // ==================== 根面板 ====================
     private JBPanel<?> rootPanel;
+    private JBPanel<?> cardsPanel;
     private CardLayout mainCardLayout;
 
     // ==================== 子面板组件 ====================
     private BookshelfPanel bookshelfPanel;
     private TextBodyPanel textBodyPanel;
     private ChapterListPanel chapterListPanel;
+    private CacheProgressPanel cacheProgressPanel;
 
     // ==================== 事件处理器 ====================
     private final MainPanelEventHandler eventHandler;
@@ -78,6 +82,7 @@ public class MainReaderPanel extends UIEventSubscriber {
 
         // 创建事件处理器
         this.eventHandler = new MainPanelEventHandler(this, bookshelfPanel, textBodyPanel);
+        this.eventHandler.setCacheProgressPanel(cacheProgressPanel);
 
         // 初始加载书架
         // First load is triggered in initAddressHistory() once the address field is ready
@@ -89,24 +94,34 @@ public class MainReaderPanel extends UIEventSubscriber {
      * 创建根面板
      */
     private void createRootPanel() {
-        mainCardLayout = new CardLayout();
-        rootPanel = new JBPanel<>(mainCardLayout);
+        rootPanel = new JBPanel<>(new java.awt.BorderLayout());
         rootPanel.setOpaque(false);
+
+        // 中央卡片容器
+        mainCardLayout = new CardLayout();
+        cardsPanel = new JBPanel<>(mainCardLayout);
+        cardsPanel.setOpaque(false);
 
         // 创建书架面板（传入书籍选择回调）
         bookshelfPanel = new BookshelfPanel();
-        rootPanel.add(bookshelfPanel, CARD_BOOKSHELF);
+        cardsPanel.add(bookshelfPanel, CARD_BOOKSHELF);
 
         // 创建正文面板
         textBodyPanel = new TextBodyPanel();
-        rootPanel.add(textBodyPanel, CARD_TEXT_BODY);
+        cardsPanel.add(textBodyPanel, CARD_TEXT_BODY);
 
         // 创建章节列表面板
         chapterListPanel = new ChapterListPanel();
-        rootPanel.add(chapterListPanel, CARD_CHAPTER_LIST);
+        cardsPanel.add(chapterListPanel, CARD_CHAPTER_LIST);
 
         // 默认显示书架
-        mainCardLayout.show(rootPanel, CARD_BOOKSHELF);
+        mainCardLayout.show(cardsPanel, CARD_BOOKSHELF);
+
+        rootPanel.add(cardsPanel, java.awt.BorderLayout.CENTER);
+
+        // 底部缓存进度面板（平时隐藏）
+        cacheProgressPanel = new CacheProgressPanel();
+        rootPanel.add(cacheProgressPanel, java.awt.BorderLayout.SOUTH);
     }
 
 
@@ -127,7 +142,7 @@ public class MainReaderPanel extends UIEventSubscriber {
      */
     public void showBookshelfPanel() {
         currentCard = CARD_BOOKSHELF;
-        mainCardLayout.show(rootPanel, CARD_BOOKSHELF);
+        mainCardLayout.show(cardsPanel, CARD_BOOKSHELF);
         textBodyVisible = false;
         if (textBodyPanel != null) {
             textBodyPanel.setContentVisible(false);
@@ -144,7 +159,7 @@ public class MainReaderPanel extends UIEventSubscriber {
 
     public void showTextBodyPanel() {
         currentCard = CARD_TEXT_BODY;
-        mainCardLayout.show(rootPanel, CARD_TEXT_BODY);
+        mainCardLayout.show(cardsPanel, CARD_TEXT_BODY);
         textBodyVisible = true;
         if (textBodyPanel != null) {
             textBodyPanel.setContentVisible(true);
@@ -159,7 +174,7 @@ public class MainReaderPanel extends UIEventSubscriber {
     public void showChapterListPanel() {
         currentCard = CARD_CHAPTER_LIST;
         chapterListPanel.refreshChapters();
-        mainCardLayout.show(rootPanel, CARD_CHAPTER_LIST);
+        mainCardLayout.show(cardsPanel, CARD_CHAPTER_LIST);
         textBodyVisible = true;
         if (textBodyPanel != null) {
             textBodyPanel.setContentVisible(false);
@@ -267,5 +282,13 @@ public class MainReaderPanel extends UIEventSubscriber {
     @Override
     protected void onSettingsChangedEvent(SettingsChangedEvent event) {
         eventHandler.handleSettingsChangedEvent(event);
+    }
+
+    /**
+     * 重写父类方法：处理离线缓存事件
+     */
+    @Override
+    protected void onCacheEvent(CacheEvent event) {
+        eventHandler.handleCacheEvent(event);
     }
 }

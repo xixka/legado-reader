@@ -39,6 +39,8 @@ Legado Reader 是 [开源阅读APP](https://github.com/gedoor/legado) 的 JetBra
 
 ### 1. 指令驱动 + 事件响应架构（新架构 v2.0+）
 
+> **离线缓存功能**：v2.0+ 新增离线缓存能力。核心服务为 `OfflineCacheService`（Application Service），负责后台异步下载整本书并 AES-256 加密落盘。缓存任务在独立 `CompletableFuture` 中执行，**不影响当前阅读会话**；进度通过 `CacheEvent` 实时发布到 `MainReaderPanel` 底部的 `CacheProgressPanel`。阅读时（4 个章节 Handler）会优先调用 `OfflineCacheService.tryLoadChapterFromCache` 读取本地缓存，未命中再回退到 `ApiUtil.getBookContent`。详见「离线缓存子系统」一节。
+
 #### 1.1 指令系统 (Command Pattern)
 
 所有用户操作通过 **CommandBus** 统一分发：
@@ -494,3 +496,51 @@ CommandBus.getInstance().dispatch(Command.of(CommandType.NEXT_CHAPTER));
 - 依赖版本统一在 `gradle/libs.versions.toml` 中管理
 - 使用 Version Catalog：`libs.jackson`, `libs.hutool` 等
 - Lombok 插件已集成，可使用 `@Data`, `@Slf4j`, `@RequiredArgsConstructor` 等注解
+
+## 离线缓存子系统
+
+### 设计目标
+1. **后台缓存不影响阅读**：缓存任务在独立线程中运行，不阻塞 EDT，不干扰当前阅读会话
+2. **AES-256 加密落盘**：所有缓存数据通过 AES/CBC/PKCS5Padding 加密后写入本地磁盘
+3. **断点续传**：进度位图（BitSet）持久化，重启后从上次中断处继续
+4. **缓存优先读取**：阅读流程优先读取本地缓存，未命中回退到 API
+5. **进度可视化**：ToolWindow 底部进度面板实时展示缓存百分比、可取消
+
+### 关键类
+
+| 包 | 类 | 职责 |
+|----|----|----|
+| `crypto` | `AesCryptoUtil` | AES 加解密工具，IV 随机生成内嵌于密文头 |
+| `storage.cache.dto` | `BookCacheMeta` | 书籍元数据（含章节列表） |
+| `storage.cache.dto` | `BookCacheProgress` | 缓存进度（BitSet 位图） |
+| `storage.cache` | `BookCacheStorage` | Application Service，目录结构管理与加密读写 |
+| `service` | `OfflineCacheService` | Application Service，后台缓存任务编排、缓存优先读取 |
+| `event` | `CacheEvent` | sealed record 事件，类型 STARTED/PROGRESS/COMPLETED/FAILED/CANCELED |
+| `command.handler` | `CacheBookHandler` | CACHE_BOOK 指令处理器 |
+| `command.handler` | `CancelCacheBookHandler` | CANCEL_CACHE_BOOK 指令处理器 |
+| `presentation.toolwindow.panel` | `CacheProgressPanel` | 进度面板 UI |
+
+### 缓存目录结构
+```
+<IntelliJ configPath>/legado-reader-cache/
+  book_<md5(bookUrl)>/
+    meta.enc            # AES(BookCacheMeta JSON)
+    progress.enc        # AES(BookCacheProgress JSON)
+    chapters/
+      0.enc             # AES(章节正文)
+      1.enc
+      ...
+```
+
+### 密钥管理
+- AES-256 密钥（32 字节）由 `AesCryptoUtil.generateKey()` 自动生成
+- Base64 编码后持久化在 `PluginSettingsStorage.State.cacheKey`
+- 首次启用缓存时自动生成，对用户透明
+- 密钥损坏时自动重新生成（旧缓存失效）
+
+### 使用流程
+1. 用户在 `设置 → Legado Reader → 常规设置` 中开启「离线缓存」
+2. 在书架右键某本书 → 「离线缓存本书」，或在章节列表底部点击「缓存本书」
+3. ToolWindow 底部出现进度面板，显示书名 / 进度百分比 / 取消按钮
+4. 阅读时 NextChapterHandler / PreviousChapterHandler / JumpToChapterHandler / SelectBookHandler 均会优先读取本地缓存
+5. 缓存任务失败/取消不影响阅读流程，可重新触发以续传

@@ -11,6 +11,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.event.ReadingEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.manager.ReadingSessionManager;
 import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSession;
 import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSessionState;
+import com.nancheung.plugins.jetbrains.legadoreader.service.OfflineCacheService;
 import com.nancheung.plugins.jetbrains.legadoreader.service.ReadingSessionStateMachine;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import lombok.extern.slf4j.Slf4j;
@@ -80,8 +81,11 @@ public class SelectBookHandler implements CommandHandler<SelectBookPayload> {
 
                 BookChapterDTO chapter = chapters.get(chapterIndex);
 
-                // 获取章节内容
-                String content = ApiUtil.getBookContent(book.getBookUrl(), chapterIndex);
+                // 获取章节内容：优先从离线缓存读取，未命中再走 API
+                String content = OfflineCacheService.getInstance().tryLoadChapterFromCache(book.getBookUrl(), chapterIndex);
+                if (content == null) {
+                    content = ApiUtil.getBookContent(book.getBookUrl(), chapterIndex);
+                }
 
                 // 创建并设置会话
                 ReadingSession session = new ReadingSession(book, chapters, chapterIndex, content);

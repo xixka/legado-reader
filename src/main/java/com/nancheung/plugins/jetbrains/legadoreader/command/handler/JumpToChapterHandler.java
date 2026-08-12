@@ -11,6 +11,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.event.ReadingEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.manager.ReadingSessionManager;
 import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSession;
 import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSessionState;
+import com.nancheung.plugins.jetbrains.legadoreader.service.OfflineCacheService;
 import com.nancheung.plugins.jetbrains.legadoreader.service.ReadingSessionStateMachine;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import lombok.extern.slf4j.Slf4j;
@@ -97,7 +98,11 @@ public class JumpToChapterHandler implements CommandHandler<JumpToChapterPayload
         CompletableFuture.runAsync(() -> {
             try {
                 BookChapterDTO chapter = chapters.get(targetIndex);
-                String content = ApiUtil.getBookContent(book.getBookUrl(), targetIndex);
+                // 优先从离线缓存读取，未命中再走 API
+                String content = OfflineCacheService.getInstance().tryLoadChapterFromCache(book.getBookUrl(), targetIndex);
+                if (content == null) {
+                    content = ApiUtil.getBookContent(book.getBookUrl(), targetIndex);
+                }
 
                 // 更新会话：跳转到目标章节
                 sessionManager.setChapterIndex(targetIndex);

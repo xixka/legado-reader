@@ -49,6 +49,7 @@ public class SettingsPanel {
     private final CustomParamTablePanel customParamTablePanel;
     private JBCheckBox enableErrorLogCheckBox;
     private JBCheckBox enableInLineModelCheckBox;
+    private JBCheckBox enableOfflineCacheCheckBox;
 
     // ==================== 阅读界面设置组件 ====================
     private ColorPanel fontColorButton;
@@ -89,7 +90,7 @@ public class SettingsPanel {
         lineHeightSpinner.setValue(viewModel.getLineHeight());
         enableErrorLogCheckBox.setSelected(viewModel.isEnableErrorLog());
         enableInLineModelCheckBox.setSelected(viewModel.isEnableInLineMode());
-
+        enableOfflineCacheCheckBox.setSelected(viewModel.isCacheEnabled());
         // 更新预览
         updateFontPreview();
     }
@@ -107,6 +108,9 @@ public class SettingsPanel {
 
         enableInLineModelCheckBox = new JBCheckBox("是否开启行内阅读模式");
         enableInLineModelCheckBox.setToolTipText("在代码行后显示章节内容");
+
+        enableOfflineCacheCheckBox = new JBCheckBox("开启离线缓存（AES-256 加密落盘）");
+        enableOfflineCacheCheckBox.setToolTipText("缓存书籍章节内容到本地磁盘，支持断点续传、离线阅读");
     }
 
     private void createReadingInterfaceComponents() {
@@ -230,9 +234,17 @@ public class SettingsPanel {
 
     @NotNull
     private JPanel createGeneralSettingsPanel() {
+        // 离线缓存说明标签
+        JBLabel cacheHintLabel = new JBLabel(
+                "启用后，在书架右键或章节列表底部可触发缓存；阅读时优先读取本地缓存。"
+        );
+        cacheHintLabel.setForeground(JBColor.GRAY);
+
         JPanel panel = FormBuilder.createFormBuilder()
                 .addComponent(enableErrorLogCheckBox, JBUI.scale(5))
                 .addComponent(enableInLineModelCheckBox, JBUI.scale(5))
+                .addComponent(enableOfflineCacheCheckBox, JBUI.scale(5))
+                .addComponent(cacheHintLabel, JBUI.scale(2))
                 .getPanel();
 
         panel.setBorder(IdeBorderFactory.createTitledBorder("常规设置"));
@@ -288,6 +300,10 @@ public class SettingsPanel {
 
         enableInLineModelCheckBox.addActionListener(e ->
                 viewModel.setEnableInLineMode(enableInLineModelCheckBox.isSelected())
+        );
+
+        enableOfflineCacheCheckBox.addActionListener(e ->
+                viewModel.setCacheEnabled(enableOfflineCacheCheckBox.isSelected())
         );
 
         // 颜色选择

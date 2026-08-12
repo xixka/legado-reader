@@ -6,11 +6,17 @@ import com.intellij.ui.components.JBPanel;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.JBTable;
 import com.nancheung.plugins.jetbrains.legadoreader.api.dto.BookChapterDTO;
+import com.nancheung.plugins.jetbrains.legadoreader.api.dto.BookDTO;
 import com.nancheung.plugins.jetbrains.legadoreader.command.Command;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandBus;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
+import com.nancheung.plugins.jetbrains.legadoreader.command.payload.CacheBookPayload;
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.JumpToChapterPayload;
 import com.nancheung.plugins.jetbrains.legadoreader.manager.ReadingSessionManager;
+import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSession;
+import com.nancheung.plugins.jetbrains.legadoreader.service.OfflineCacheService;
+import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
+import com.intellij.util.ui.JBUI;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
@@ -37,6 +43,8 @@ public class ChapterListPanel extends JBPanel<ChapterListPanel> {
     // ==================== UI 组件 ====================
     private final JBTable chapterTable;
     private final DefaultTableModel tableModel;
+    private JButton cacheBookButton;
+    private JButton cancelCacheButton;
 
     // ==================== 构造函数 ====================
     public ChapterListPanel() {
@@ -70,8 +78,63 @@ public class ChapterListPanel extends JBPanel<ChapterListPanel> {
         scrollPane.getViewport().setOpaque(false);
         this.add(scrollPane, BorderLayout.CENTER);
 
+        // 2. 底部缓存操作栏
+        this.add(createCacheButtonBar(), BorderLayout.SOUTH);
+
         // 3. 绑定事件
         bindEventListeners();
+    }
+
+    /**
+     * 创建底部缓存按钮栏
+     */
+    private JComponent createCacheButtonBar() {
+        JBPanel<?> bar = new JBPanel<>();
+        bar.setLayout(new FlowLayout(FlowLayout.RIGHT, JBUI.scale(4), JBUI.scale(4)));
+        bar.setOpaque(false);
+
+        cacheBookButton = new JButton("缓存本书");
+        cacheBookButton.setToolTipText("将当前书籍的全部章节后台缓存到本地（AES 加密）");
+        cacheBookButton.addActionListener(e -> triggerCacheCurrentBook());
+
+        cancelCacheButton = new JButton("取消缓存");
+        cancelCacheButton.setToolTipText("取消正在进行的缓存任务");
+        cancelCacheButton.setEnabled(false);
+        cancelCacheButton.addActionListener(e -> CommandBus.getInstance().dispatchAsync(
+                Command.of(CommandType.CANCEL_CACHE_BOOK)
+        ));
+
+        bar.add(cacheBookButton);
+        bar.add(cancelCacheButton);
+        return bar;
+    }
+
+    /**
+     * 触发当前书籍的离线缓存
+     */
+    private void triggerCacheCurrentBook() {
+        ReadingSession session = ReadingSessionManager.getInstance().getSession();
+        if (session == null) {
+            log.warn("无当前阅读会话，无法触发缓存");
+            return;
+        }
+        BookDTO book = session.book();
+        List<BookChapterDTO> chapters = session.chapters();
+        if (book == null || chapters == null || chapters.isEmpty()) {
+            log.warn("书籍或章节为空，无法缓存");
+            return;
+        }
+
+        if (OfflineCacheService.getInstance().isCacheRunning(book.getBookUrl())) {
+            log.info("该书正在缓存中，忽略重复请求");
+            return;
+        }
+
+        CommandBus.getInstance().dispatchAsync(Command.of(
+                CommandType.CACHE_BOOK,
+                new CacheBookPayload(book, chapters)
+        ));
+        log.info("已请求离线缓存当前书籍：{}", book.getName());
     }
 
     // ==================== 事件绑定方法 ====================
@@ -130,6 +193,7 @@ public class ChapterListPanel extends JBPanel<ChapterListPanel> {
         if (chapters == null || chapters.isEmpty()) {
             log.debug("章节列表为空");
             tableModel.addRow(new Object[]{"-", "暂无章节"});
+            updateCacheButtonState(null);
             return;
         }
 
@@ -141,6 +205,30 @@ public class ChapterListPanel extends JBPanel<ChapterListPanel> {
 
         // 滚动到当前章节并选中
         selectCurrentChapter(currentIndex);
+
+        // 更新缓存按钮状态
+        BookDTO book = ReadingSessionManager.getInstance().getCurrentBook();
+        updateCacheButtonState(book);
+    }
+
+    /**
+     * 根据缓存设置与运行状态更新按钮启用状态
+     */
+    private void updateCacheButtonState(BookDTO book) {
+        boolean cacheEnabled = Boolean.TRUE.equals(PluginSettingsStorage.getInstance().getState().cacheEnabled);
+        boolean running = book != null
+                && OfflineCacheService.getInstance().isCacheRunning(book.getBookUrl());
+
+        cacheBookButton.setEnabled(cacheEnabled && !running);
+        cancelCacheButton.setEnabled(running);
+
+        if (!cacheEnabled) {
+            cacheBookButton.setToolTipText("请在 设置 -> Legado Reader 中开启离线缓存");
+        } else if (running) {
+            cacheBookButton.setToolTipText("正在缓存中...");
+        } else {
+            cacheBookButton.setToolTipText("将当前书籍的全部章节后台缓存到本地（AES 加密）");
+        }
     }
 
     /**
