@@ -1,4 +1,4 @@
-﻿package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
+package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
 
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
@@ -11,6 +11,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.command.CommandBus;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.JumpToChapterPayload;
 import com.nancheung.plugins.jetbrains.legadoreader.manager.ReadingSessionManager;
+import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.MainReaderPanel;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
@@ -41,13 +42,22 @@ public class ChapterListPanel extends JBPanel<ChapterListPanel> {
     // ==================== 构造函数 ====================
     public ChapterListPanel() {
         super(new BorderLayout());
-        setOpaque(false);
 
-        // 1. 顶部提示
-        JBLabel titleLabel = new JBLabel("章节列表");
-        titleLabel.setHorizontalAlignment(SwingConstants.LEFT);
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
-        this.add(titleLabel, BorderLayout.NORTH);
+        // 1. 顶部工具栏：返回正文 / 返回书架
+        JBPanel<?> toolbarPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 4, 4));
+        toolbarPanel.setOpaque(false);
+
+        JButton backToTextButton = new JButton("← 返回正文");
+        backToTextButton.addActionListener(e ->
+            MainReaderPanel.getInstance().showTextBodyPanel());
+        toolbarPanel.add(backToTextButton);
+
+        JButton backToShelfButton = new JButton("← 返回书架");
+        backToShelfButton.addActionListener(e ->
+            MainReaderPanel.getInstance().showBookshelfPanel());
+        toolbarPanel.add(backToShelfButton);
+
+        this.add(toolbarPanel, BorderLayout.NORTH);
 
         // 2. 中央章节表格
         tableModel = new DefaultTableModel(null, COLUMN_NAMES) {
@@ -142,7 +152,7 @@ public class ChapterListPanel extends JBPanel<ChapterListPanel> {
 
         for (int i = 0; i < chapters.size(); i++) {
             BookChapterDTO chapter = chapters.get(i);
-            String title = chapter.getTitle() != null ? chapter.getTitle() : ("第 " + (i + 1) + " 章");
+            String title = chapter.getTitle() != null ? chapter.getTitle() : ("第" + (i + 1) + " 章");
             tableModel.addRow(new Object[]{i, title});
         }
 
@@ -197,4 +207,3 @@ public class ChapterListPanel extends JBPanel<ChapterListPanel> {
         }
     }
 }
-
