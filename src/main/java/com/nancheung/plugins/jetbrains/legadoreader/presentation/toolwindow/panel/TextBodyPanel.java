@@ -31,6 +31,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
 
     // ==================== UI 组件 ====================
     private final JTextPane textBodyPane;
+    private final JBScrollPane textScrollPane;
     private final JBPanel<?> textBodyContentPanel;
     private final CardLayout textBodyContentLayout;
 
@@ -54,7 +55,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         textBodyPane.setOpaque(false);
         textBodyPane.getCaret().setVisible(false);
 
-        JBScrollPane textScrollPane = new JBScrollPane(textBodyPane);
+        textScrollPane = new JBScrollPane(textBodyPane);
         textScrollPane.setOpaque(false);
         textScrollPane.getViewport().setOpaque(false);
         textBodyContentPanel.add(textScrollPane, CARD_CONTENT);
@@ -141,12 +142,21 @@ wrapper.add(component);
      *
      * @param position 目标位置
      */
+    /**
+     * 无动画覆盖滑动：直接将目标位置推到视口顶部
+     *
+     * @param position 目标字符偏移
+     */
     public void scrollToPosition(int position) {
         try {
             Rectangle viewRect = textBodyPane.modelToView2D(position).getBounds();
-            textBodyPane.scrollRectToVisible(viewRect);
+            JViewport viewport = textScrollPane.getViewport();
+            // 将目标行的顶部对齐到视口顶部，实现无动画的瞬间覆盖翻页
+            viewport.setViewPosition(new Point(0, viewRect.y));
         } catch (javax.swing.text.BadLocationException e) {
             // 忽略无效位置
+        }
+    }
         }
     }
 
