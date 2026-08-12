@@ -1,4 +1,4 @@
-package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
+﻿package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
 
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
@@ -63,6 +63,11 @@ public class ChapterListPanel extends JBPanel<ChapterListPanel> {
         chapterTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         chapterTable.getTableHeader().setReorderingAllowed(false);
         chapterTable.setOpaque(false);
+
+        // 列宽：序号列收紧，标题列自动填充剩余空间
+        chapterTable.getColumnModel().getColumn(0).setPreferredWidth(50);
+        chapterTable.getColumnModel().getColumn(0).setMaxWidth(80);
+        chapterTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
 
         // 当前行（正在阅读的章节）高亮渲染
         chapterTable.setDefaultRenderer(Object.class, new CurrentChapterRenderer());
@@ -192,3 +197,4 @@ public class ChapterListPanel extends JBPanel<ChapterListPanel> {
         }
     }
 }
+
