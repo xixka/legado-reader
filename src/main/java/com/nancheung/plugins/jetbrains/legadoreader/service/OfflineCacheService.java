@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -202,14 +203,14 @@ public final class OfflineCacheService {
         // 5. 启动异步任务
         return CompletableFuture.runAsync(() -> {
             try {
-                int cachedCount = bitmap.cardinality();
+                AtomicInteger cachedCount = new AtomicInteger(bitmap.cardinality());
 
                 for (int i = 0; i < total; i++) {
                     // 取消检查
                     if (state.isCanceled() || Thread.currentThread().isInterrupted()) {
-                        log.info("缓存被取消：book={}, progress={}/{}", book.getName(), cachedCount, total);
-                        publisher.publish(CacheEvent.canceled(commandId, bookUrl, book.getName(), total, cachedCount));
-                        saveProgress(storage, progress, bitmap, cachedCount, BookCacheProgress.STATUS_INCOMPLETE);
+                        log.info("缓存被取消：book={}, progress={}/{}", book.getName(), cachedCount.get(), total);
+                        publisher.publish(CacheEvent.canceled(commandId, bookUrl, book.getName(), total, cachedCount.get()));
+                        saveProgress(storage, progress, bitmap, cachedCount.get(), BookCacheProgress.STATUS_INCOMPLETE);
                         return;
                     }
 
@@ -234,13 +235,13 @@ public final class OfflineCacheService {
 
                         storage.saveChapter(bookUrl, i, content);
                         bitmap.set(i);
-                        cachedCount++;
+                        cachedCount.getAndIncrement();
 
                         // 持久化进度（每章保存一次，避免崩溃丢失）
-                        saveProgress(storage, progress, bitmap, cachedCount, BookCacheProgress.STATUS_INCOMPLETE);
+                        saveProgress(storage, progress, bitmap, cachedCount.get(), BookCacheProgress.STATUS_INCOMPLETE);
 
                         // 发布进度事件
-                        publisher.publish(CacheEvent.progress(commandId, bookUrl, book.getName(), total, cachedCount));
+                        publisher.publish(CacheEvent.progress(commandId, bookUrl, book.getName(), total, cachedCount.get()));
 
                         // 节流：降低服务端压力
                         if (i < total - 1) {
@@ -248,14 +249,14 @@ public final class OfflineCacheService {
                         }
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        log.info("缓存被中断：book={}, progress={}/{}", book.getName(), cachedCount, total);
-                        publisher.publish(CacheEvent.canceled(commandId, bookUrl, book.getName(), total, cachedCount));
-                        saveProgress(storage, progress, bitmap, cachedCount, BookCacheProgress.STATUS_INCOMPLETE);
+                        log.info("缓存被中断：book={}, progress={}/{}", book.getName(), cachedCount.get(), total);
+                        publisher.publish(CacheEvent.canceled(commandId, bookUrl, book.getName(), total, cachedCount.get()));
+                        saveProgress(storage, progress, bitmap, cachedCount.get(), BookCacheProgress.STATUS_INCOMPLETE);
                         return;
                     } catch (Exception e) {
                         log.error("缓存章节失败：book={}, index={}", book.getName(), i, e);
-                        publisher.publish(CacheEvent.failed(commandId, bookUrl, book.getName(), total, cachedCount, e.getMessage()));
-                        saveProgress(storage, progress, bitmap, cachedCount, BookCacheProgress.STATUS_INCOMPLETE);
+                        publisher.publish(CacheEvent.failed(commandId, bookUrl, book.getName(), total, cachedCount.get(), e.getMessage()));
+                        saveProgress(storage, progress, bitmap, cachedCount.get(), BookCacheProgress.STATUS_INCOMPLETE);
                         return;
                     }
                 }
@@ -276,8 +277,8 @@ public final class OfflineCacheService {
      * 保存进度到存储
      */
     private void saveProgress(BookCacheStorage storage, BookCacheProgress progress,
-                              BitSet bitmap, int cachedCount, String status) {
-        progress.setCachedChapters(cachedCount);
+                              BitSet bitmap, int cachedCount.get(), String status) {
+        progress.setCachedChapters(cachedCount.get());
         progress.setCachedBitmap(BookCacheProgress.bitmapToBase64(bitmap));
         progress.setLastCacheTime(System.currentTimeMillis());
         progress.setStatus(status);

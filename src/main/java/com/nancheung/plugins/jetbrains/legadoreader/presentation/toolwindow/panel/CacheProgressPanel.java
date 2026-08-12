@@ -39,7 +39,7 @@ public class CacheProgressPanel extends JBPanel<CacheProgressPanel> {
         setBorder(JBUI.Borders.empty(4, 8));
 
         // 状态标签
-        statusLabel = new JBLabel("离线缓存：等待中...");
+        statusLabel = new JLabel("离线缓存：等待中...");
         statusLabel.setForeground(JBColor.GRAY);
 
         // 进度条
