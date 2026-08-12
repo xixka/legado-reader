@@ -17,7 +17,7 @@
                              groupId="tools" displayName="Legado Reader"
                              instance="com.nancheung.plugins.jetbrains.legadoreader.presentation.settings.SettingsConfigurable"/>
 
-        <toolWindow id="Legado Reader"
+        <toolWindow id="Reader"
                     secondary="true"
                     anchor="right" factoryClass="com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.MainReaderPanelFactory" icon="/META-INF/pluginIcon.svg">
         </toolWindow>
