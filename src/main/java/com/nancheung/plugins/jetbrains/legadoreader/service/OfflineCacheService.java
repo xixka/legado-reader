@@ -277,8 +277,8 @@ public final class OfflineCacheService {
      * 保存进度到存储
      */
     private void saveProgress(BookCacheStorage storage, BookCacheProgress progress,
-                              BitSet bitmap, int cachedCount.get(), String status) {
-        progress.setCachedChapters(cachedCount.get());
+                              BitSet bitmap, int cachedCount, String status) {
+        progress.setCachedChapters(cachedCount);
         progress.setCachedBitmap(BookCacheProgress.bitmapToBase64(bitmap));
         progress.setLastCacheTime(System.currentTimeMillis());
         progress.setStatus(status);
