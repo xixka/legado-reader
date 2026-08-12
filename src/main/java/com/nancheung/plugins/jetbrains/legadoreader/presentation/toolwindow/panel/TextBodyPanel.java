@@ -52,6 +52,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         textBodyPane = new JTextPane();
         textBodyPane.setEditable(false);
         textBodyPane.setOpaque(false);
+        textBodyPane.getCaret().setVisible(false);
 
         JBScrollPane textScrollPane = new JBScrollPane(textBodyPane);
         textScrollPane.setOpaque(false);
