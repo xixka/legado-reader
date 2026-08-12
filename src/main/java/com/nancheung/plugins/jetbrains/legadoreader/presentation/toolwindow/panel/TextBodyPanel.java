@@ -183,8 +183,12 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             // 判断此行是否完整可见（行底部 ≤ viewBottom）
             if ((lineTop + lineHeight) > viewBottom) {
                 // 行不完整，回退到上一行末尾
-                pos = findPositionAtY(lineTop - 1);
-                if (pos <= 0) pos = 0;
+                if (lineTop <= 0) {
+                    pos = 0;
+                } else {
+                    pos = findPositionAtY(lineTop - 1);
+                    if (pos <= 0) pos = 0;
+                }
             }
 
             // 确保跳过了当前 viewport 内的内容（至少推进一行）
@@ -346,12 +350,9 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
     // ==================== 查询方法 ====================
 
     /**
-     * 检查内容是否可见
+     * 获取当前是否处于可见（正文）状态
      *
      * @return true 如果内容可见
-     */
-    /**
-     * 获取当前是否处于可见（正文）状态
      */
     public boolean isContentVisible() {
         return contentVisible;

@@ -162,7 +162,7 @@ public class MainReaderPanel extends UIEventSubscriber {
         mainCardLayout.show(rootPanel, CARD_CHAPTER_LIST);
         textBodyVisible = true;
         if (textBodyPanel != null) {
-            textBodyPanel.setContentVisible(true);
+            textBodyPanel.setContentVisible(false);
         }
         updateTitleActions();
     }
