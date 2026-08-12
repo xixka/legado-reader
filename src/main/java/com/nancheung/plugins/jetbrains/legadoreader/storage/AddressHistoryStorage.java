@@ -71,6 +71,23 @@ public final class AddressHistoryStorage implements PersistentStateComponent<Add
      */
     public static final int MAX_SIZE = 4;
 
+    /**
+     * Normalize server address: prepend http:// when no protocol is present.
+     * Covers legacy stored values like "127.0.0.1:1122" written before normalization existed.
+     */
+    public static String normalizeAddress(String address) {
+        if (address == null) {
+            return null;
+        }
+        String trimmed = address.trim();
+        if (trimmed.isEmpty()) {
+            return trimmed;
+        }
+        if (!trimmed.matches("^[a-zA-Z][a-zA-Z0-9+.-]*://.*")) {
+            return "http://" + trimmed;
+        }
+        return trimmed;
+    }
 
     /**
      * 添加地址到历史记录
@@ -79,6 +96,7 @@ public final class AddressHistoryStorage implements PersistentStateComponent<Add
      * @param address 地址
      */
     public void addAddress(String address) {
+        address = normalizeAddress(address);
         if (address == null || address.isEmpty()) {
             return;
         }
@@ -86,7 +104,7 @@ public final class AddressHistoryStorage implements PersistentStateComponent<Add
         State currentState = getState();
 
         // 移除已存在的相同地址
-        currentState.items.removeIf(item -> item.address.equals(address));
+        currentState.items.removeIf(item -> normalizeAddress(item.address).equals(address));
 
         // 添加到最前面
         HistoryItemState newItem = new HistoryItemState(address, System.currentTimeMillis());
@@ -105,7 +123,7 @@ public final class AddressHistoryStorage implements PersistentStateComponent<Add
      */
     public List<String> getAddressList() {
         return getState().items.stream()
-                .map(item -> item.address)
+                .map(item -> normalizeAddress(item.address))
                 .collect(Collectors.toList());
     }
 
@@ -116,6 +134,6 @@ public final class AddressHistoryStorage implements PersistentStateComponent<Add
      */
     public String getMostRecent() {
         List<HistoryItemState> items = getState().items;
-        return items.isEmpty() ? null : items.getFirst().address;
+        return items.isEmpty() ? null : normalizeAddress(items.getFirst().address);
     }
 }

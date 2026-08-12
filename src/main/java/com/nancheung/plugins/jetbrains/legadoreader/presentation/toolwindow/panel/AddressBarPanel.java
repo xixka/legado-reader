@@ -111,7 +111,8 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
     public void load() {
         refreshButton.setEnabled(false);
 
-        String text = addressTextField.getText();
+        String text = AddressHistoryStorage.normalizeAddress(addressTextField.getText());
+        addressTextField.setText(text);
         AddressHistoryStorage.getInstance().addAddress(text);
         refreshHistory();
 
@@ -143,8 +144,8 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
 
         if (history.isEmpty()) {
             addressHistoryBox.setEnabled(false);
-            addressTextField.setText("127.0.0.1:1122");
-            ADDRESS_HISTORY_MODEL.addElement("127.0.0.1:1122");
+            addressTextField.setText("http://127.0.0.1:1122");
+            ADDRESS_HISTORY_MODEL.addElement("http://127.0.0.1:1122");
             return;
         }
 

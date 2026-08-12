@@ -80,7 +80,7 @@ public class MainReaderPanel extends UIEventSubscriber {
         this.eventHandler = new MainPanelEventHandler(this, bookshelfPanel, textBodyPanel);
 
         // 初始加载书架
-        initialLoadBookshelf();
+        // First load is triggered in initAddressHistory() once the address field is ready
     }
 
     // ==================== 组件创建方法 ====================
@@ -239,6 +239,8 @@ public class MainReaderPanel extends UIEventSubscriber {
      */
     public void initAddressHistory() {
         bookshelfPanel.initAddressHistory();
+        // Trigger the first load only after the address field has been initialized
+        bookshelfPanel.refreshBookshelf();
     }
 
     // ==================== 事件处理方法 ====================
