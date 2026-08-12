@@ -11,7 +11,6 @@ import com.nancheung.plugins.jetbrains.legadoreader.command.CommandBus;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.JumpToChapterPayload;
 import com.nancheung.plugins.jetbrains.legadoreader.manager.ReadingSessionManager;
-import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.MainReaderPanel;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
@@ -43,23 +42,7 @@ public class ChapterListPanel extends JBPanel<ChapterListPanel> {
     public ChapterListPanel() {
         super(new BorderLayout());
 
-        // 1. 顶部工具栏：返回正文 / 返回书架
-        JBPanel<?> toolbarPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 4, 4));
-        toolbarPanel.setOpaque(false);
-
-        JButton backToTextButton = new JButton("← 返回正文");
-        backToTextButton.addActionListener(e ->
-            MainReaderPanel.getInstance().showTextBodyPanel());
-        toolbarPanel.add(backToTextButton);
-
-        JButton backToShelfButton = new JButton("← 返回书架");
-        backToShelfButton.addActionListener(e ->
-            MainReaderPanel.getInstance().showBookshelfPanel());
-        toolbarPanel.add(backToShelfButton);
-
-        this.add(toolbarPanel, BorderLayout.NORTH);
-
-        // 2. 中央章节表格
+        // 1. 中央章节表格
         tableModel = new DefaultTableModel(null, COLUMN_NAMES) {
             @Override
             public boolean isCellEditable(int row, int column) {
