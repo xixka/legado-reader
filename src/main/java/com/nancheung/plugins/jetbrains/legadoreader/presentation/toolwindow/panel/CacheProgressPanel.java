@@ -1,6 +1,7 @@
 package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
 
 import com.intellij.ui.JBColor;
+import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
 import com.intellij.util.ui.JBUI;
 import com.nancheung.plugins.jetbrains.legadoreader.event.CacheEvent;
@@ -24,7 +25,7 @@ import java.awt.*;
 @Slf4j
 public class CacheProgressPanel extends JBPanel<CacheProgressPanel> {
 
-    private final JLabel statusLabel;
+    private final JBLabel statusLabel;
     private final JProgressBar progressBar;
     private final JButton cancelButton;
 
@@ -39,7 +40,7 @@ public class CacheProgressPanel extends JBPanel<CacheProgressPanel> {
         setBorder(JBUI.Borders.empty(4, 8));
 
         // 状态标签
-        statusLabel = new JLabel("离线缓存：等待中...");
+        statusLabel = new JBLabel("离线缓存：等待中...");
         statusLabel.setForeground(JBColor.GRAY);
 
         // 进度条
