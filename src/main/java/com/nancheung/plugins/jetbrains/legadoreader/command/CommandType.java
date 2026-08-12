@@ -53,7 +53,7 @@ public enum CommandType {
     /**
      * 返回书架（结束阅读会话）
      */
-    BACK_TO_BOOKSHELF("返回书架"),
+    BACK_TO_BOOKSHELF("返回"),
 
     /**
      * 获取当前阅读信息

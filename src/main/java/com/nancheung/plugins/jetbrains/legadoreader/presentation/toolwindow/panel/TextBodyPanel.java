@@ -53,11 +53,18 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         textBodyPane = new JTextPane();
         textBodyPane.setEditable(false);
         textBodyPane.setOpaque(false);
-        textBodyPane.getCaret().setVisible(false);
+        textBodyPane.setFocusable(false);                         // 不显示焦点边框
+        textBodyPane.getCaret().setVisible(false);                // 隐藏光标
+        textBodyPane.setSelectionColor(new Color(0, 0, 0, 0));    // 选中文本不显示高亮
+        textBodyPane.setSelectedTextColor(textBodyPane.getForeground());
+        textBodyPane.setBorder(null);                              // 去边框
+        textBodyPane.setMargin(new java.awt.Insets(0, 0, 0, 0));  // 去内边距
 
         textScrollPane = new JBScrollPane(textBodyPane);
         textScrollPane.setOpaque(false);
         textScrollPane.getViewport().setOpaque(false);
+        textScrollPane.setBorder(null);                            // 去 JBScrollPane 默认边框
+        textScrollPane.setViewportBorder(null);                     // 去 viewport 边框
         textBodyContentPanel.add(textScrollPane, CARD_CONTENT);
 
         // 1.2 错误卡片
@@ -155,8 +162,6 @@ wrapper.add(component);
             viewport.setViewPosition(new Point(0, viewRect.y));
         } catch (javax.swing.text.BadLocationException e) {
             // 忽略无效位置
-        }
-    }
         }
     }
 
