@@ -6,7 +6,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.command.Command;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandBus;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
-import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
+import com.nancheung.plugins.jetbrains.legadoreader.manager.ReadingSessionManager;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 
@@ -31,11 +31,12 @@ public class PreviousPageAction extends AnAction {
 
     @Override
     public void update(@NotNull AnActionEvent e) {
-        // 检查行内模式是否启用
-        boolean enableShowBodyInLine = PluginSettingsStorage.getInstance()
-                .getState().enableShowBodyInLine;
+        // 只要有当前阅读会话就启用，不再依赖行内模式开关
+        // 这样 ToolWindow 工具栏与 EditorLine 行内模式均可点击
+        e.getPresentation().setEnabledAndVisible(hasReadingSession());
+    }
 
-        // 如果行内模式被禁用，则禁用此 Action
-        e.getPresentation().setEnabled(enableShowBodyInLine);
+    private boolean hasReadingSession() {
+        return ReadingSessionManager.getInstance().getSession() != null;
     }
 }

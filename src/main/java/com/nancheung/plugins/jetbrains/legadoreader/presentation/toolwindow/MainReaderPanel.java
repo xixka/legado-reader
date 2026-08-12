@@ -11,6 +11,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.presentation.common.UIEventS
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.styling.TextBodyStyling;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.TextBodyPanel;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.BookshelfPanel;
+import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.ChapterListPanel;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.handler.MainPanelEventHandler;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ public class MainReaderPanel extends UIEventSubscriber {
     // ==================== 卡片常量 ====================
     private static final String CARD_BOOKSHELF = "BOOKSHELF";
     private static final String CARD_TEXT_BODY = "TEXT_BODY";
+    private static final String CARD_CHAPTER_LIST = "CHAPTER_LIST";
 
     // ==================== 根面板 ====================
     private JBPanel<?> rootPanel;
@@ -35,6 +37,7 @@ public class MainReaderPanel extends UIEventSubscriber {
     // ==================== 子面板组件 ====================
     private BookshelfPanel bookshelfPanel;
     private TextBodyPanel textBodyPanel;
+    private ChapterListPanel chapterListPanel;
 
     // ==================== 事件处理器 ====================
     private final MainPanelEventHandler eventHandler;
@@ -53,12 +56,12 @@ public class MainReaderPanel extends UIEventSubscriber {
      */
     private ToolWindow toolWindow;
     /**
-     * 正文阅读工具栏按钮组（返回书架 / 上下章 / 上下页 / 当前阅读信息）。
-     * 仅在显示正文面板时挂到 ToolWindow 标题栏右侧；书架面板时清空。
+     * 正文阅读工具栏按钮组（返回书架 / 上下章 / 上下页 / 章节列表）。
+     * 仅在显示正文面板或章节列表面板时挂到 ToolWindow 标题栏右侧；书架面板时清空。
      */
     private List<AnAction> titleActions = Collections.emptyList();
     /**
-     * 当前是否处于正文面板（决定 titleActions 是否挂载）
+     * 当前是否处于正文面板或章节列表面板（决定 titleActions 是否挂载）
      */
     private boolean textBodyVisible = false;
 
@@ -94,6 +97,10 @@ public class MainReaderPanel extends UIEventSubscriber {
         textBodyPanel = new TextBodyPanel();
         rootPanel.add(textBodyPanel, CARD_TEXT_BODY);
 
+        // 创建章节列表面板
+        chapterListPanel = new ChapterListPanel();
+        rootPanel.add(chapterListPanel, CARD_CHAPTER_LIST);
+
         // 默认显示书架
         mainCardLayout.show(rootPanel, CARD_BOOKSHELF);
     }
@@ -125,6 +132,17 @@ public class MainReaderPanel extends UIEventSubscriber {
      */
     public void showTextBodyPanel() {
         mainCardLayout.show(rootPanel, CARD_TEXT_BODY);
+        textBodyVisible = true;
+        updateTitleActions();
+    }
+
+    /**
+     * 显示章节列表面板
+     * 调用前会刷新章节列表以确保数据最新
+     */
+    public void showChapterListPanel() {
+        chapterListPanel.refreshChapters();
+        mainCardLayout.show(rootPanel, CARD_CHAPTER_LIST);
         textBodyVisible = true;
         updateTitleActions();
     }

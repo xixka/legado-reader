@@ -49,7 +49,8 @@
         <action id="com.nancheung.legado-reader.action.previousPage"
                 class="com.nancheung.plugins.jetbrains.legadoreader.action.PreviousPageAction"
                 text="上一页"
-                description="阅读上一页内容">
+                description="阅读上一页内容"
+                icon="/icons/previousPage.svg">
             <mouse-shortcut keymap="$default" keystroke="control button143"/>
         </action>
 
@@ -57,7 +58,8 @@
         <action id="com.nancheung.legado-reader.action.nextPage"
                 class="com.nancheung.plugins.jetbrains.legadoreader.action.NextPageAction"
                 text="下一页"
-                description="阅读下一页内容">
+                description="阅读下一页内容"
+                icon="/icons/nextPage.svg">
             <mouse-shortcut keymap="$default" keystroke="control button142"/>
         </action>
 
@@ -71,8 +73,8 @@
             <reference id="com.nancheung.legado-reader.action.previousPage"/>
             <reference id="com.nancheung.legado-reader.action.nextPage"/>
             <separator/>
-            <action id="com.nancheung.legado-reader.action.showBookInfo" class="com.nancheung.plugins.jetbrains.legadoreader.action.ShowBookInfoAction"
-                    text="当前阅读信息" icon="/icons/showBookInfo.svg"/>
+            <action id="com.nancheung.legado-reader.action.showChapterList" class="com.nancheung.plugins.jetbrains.legadoreader.action.ShowChapterListAction"
+                    text="章节列表" description="打开章节列表，可选择章节跳转" icon="/icons/chapterList.svg"/>
         </group>
 
     </actions>

@@ -59,6 +59,7 @@ public class CommandHandlerInitializer implements ProjectActivity {
         // ========== 章节切换处理器 ==========
         registry.register(new NextChapterHandler());
         registry.register(new PreviousChapterHandler());
+        registry.register(new JumpToChapterHandler());
 
         // ========== 翻页处理器 ==========
         registry.register(new NextPageHandler());
@@ -73,7 +74,6 @@ public class CommandHandlerInitializer implements ProjectActivity {
 
         // TODO: 待实现的处理器
         // registry.register(new FetchBookshelfHandler());
-        // registry.register(new JumpToChapterHandler());
         // registry.register(new RefreshBookshelfHandler());
         // registry.register(new GetReadingInfoHandler());
 
