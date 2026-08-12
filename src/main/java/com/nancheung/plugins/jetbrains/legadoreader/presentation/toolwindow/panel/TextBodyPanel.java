@@ -209,27 +209,23 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         JViewport viewport = textScrollPane.getViewport();
         int viewHeight = viewport.getExtentSize().height;
         int viewTop = viewport.getViewPosition().y;
+        int totalLen = textBodyPane.getDocument().getLength();
 
-        try {
-            int totalLen = textBodyPane.getDocument().getLength();
-            if (totalLen == 0) return -1;
+        if (totalLen == 0) return -1;
 
-            // 目标位置：从当前 viewport 顶部往上翻一个 viewport 高度
-            float targetY = Math.max(0, viewTop - viewHeight);
-            int pos = findPositionAtY(targetY);
+        // 目标位置：从当前 viewport 顶部往上翻一个 viewport 高度
+        float targetY = Math.max(0, viewTop - viewHeight);
+        int pos = findPositionAtY(targetY);
 
-            if (pos <= 0) {
-                scrollToPosition(0);
-                setCaretPosition(0);
-                return 0;
-            }
-
-            scrollToPosition(pos);
-            setCaretPosition(pos);
-            return pos;
-        } catch (BadLocationException e) {
-            return -1;
+        if (pos <= 0) {
+            scrollToPosition(0);
+            setCaretPosition(0);
+            return 0;
         }
+
+        scrollToPosition(pos);
+        setCaretPosition(pos);
+        return pos;
     }
 
     /**
@@ -265,11 +261,8 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
      * 根据像素 Y 坐标找到对应的字符偏移
      */
     private int findPositionAtY(float y) {
-        try {
-            return textBodyPane.viewToModel2D(new Point(0, (int) y));
-        } catch (BadLocationException e) {
-            return textBodyPane.getDocument().getLength() - 1;
-        }
+        int pos = textBodyPane.viewToModel2D(new Point(0, (int) y));
+        return pos >= 0 ? pos : textBodyPane.getDocument().getLength() - 1;
     }
 
     /**
