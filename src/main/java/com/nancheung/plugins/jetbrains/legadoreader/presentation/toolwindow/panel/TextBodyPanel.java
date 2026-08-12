@@ -95,7 +95,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
     private JBPanel<?> wrapCentered(JComponent component) {
         JBPanel<?> wrapper = new JBPanel<>(new GridBagLayout());
         wrapper.setOpaque(false);
-wrapper.add(component);
+        wrapper.add(component);
         return wrapper;
     }
 
@@ -144,11 +144,6 @@ wrapper.add(component);
         textBodyPane.setCaretPosition(position);
     }
 
-    /**
-     * 滚动到指定位置
-     *
-     * @param position 目标位置
-     */
     /**
      * 无动画覆盖滑动：直接将目标位置推到视口顶部
      *
