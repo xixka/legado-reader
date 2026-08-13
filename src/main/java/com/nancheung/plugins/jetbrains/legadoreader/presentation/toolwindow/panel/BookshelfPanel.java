@@ -5,6 +5,7 @@ import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.JBTable;
+import com.intellij.util.ui.JBUI;
 import com.nancheung.plugins.jetbrains.legadoreader.api.ApiUtil;
 import com.nancheung.plugins.jetbrains.legadoreader.api.dto.BookDTO;
 import com.nancheung.plugins.jetbrains.legadoreader.command.Command;
@@ -14,6 +15,8 @@ import com.nancheung.plugins.jetbrains.legadoreader.command.payload.CacheBookPay
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.SelectBookPayload;
 import com.nancheung.plugins.jetbrains.legadoreader.service.OfflineCacheService;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
+import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.BookCacheStorage;
+import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheMeta;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
@@ -24,7 +27,9 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Vector;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -57,7 +62,6 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
     private final CardLayout bookshelfContentLayout;
     private JButton cacheButton;
     private JButton cancelButton;
-    private JButton refreshStatusButton;
 
     // ==================== 数据模型（静态，多窗口共享） ====================
     private static final DefaultTableModel BOOK_SHELF_TABLE_MODEL =
@@ -77,8 +81,8 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         super(new BorderLayout());
         setOpaque(false);
 
-        // 1. 创建地址栏组件，传入加载动作和回调
-        addressBarPanel = new AddressBarPanel<>(ApiUtil::getBookshelf, this::handleBooksLoaded, this::handleLoadFailed);
+        // 1. 创建地址栏组件，传入在线加载动作、离线模式回调、成功/失败回调
+        addressBarPanel = new AddressBarPanel<>(ApiUtil::getBookshelf, this::loadOfflineBookshelf, this::handleBooksLoaded, this::handleLoadFailed);
         this.add(addressBarPanel, BorderLayout.NORTH);
 
         // 2. 中央内容区（使用 CardLayout 切换内容/错误）
@@ -131,19 +135,26 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
      */
     private JBLabel createErrorLabel() {
         JBLabel label = new JBLabel();
-        label.setText("<html><center>" + ERROR_MESSAGE.replace("\n", "<br>") + "</center></html>");
+        label.setText("<html><div style='text-align:center;'>" + ERROR_MESSAGE.replace("\n", "<br>") + "</div></html>");
         label.setHorizontalAlignment(SwingConstants.CENTER);
         label.setForeground(JBColor.GRAY);
+        // 确保错误提示有足够宽度完整显示
+        label.setMinimumSize(JBUI.size(350, 120));
+        label.setPreferredSize(JBUI.size(450, 140));
         return label;
     }
 
     /**
-     * 将组件包装在居中面板中
+     * 将组件包装在居中面板中（横向填充，确保内容不被压缩）
      */
     private JBPanel<?> wrapCentered(JComponent component) {
         JBPanel<?> wrapper = new JBPanel<>(new GridBagLayout());
         wrapper.setOpaque(false);
-wrapper.add(component);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        gbc.gridwidth = GridBagConstraints.REMAINDER;
+        wrapper.add(component, gbc);
         return wrapper;
     }
 
@@ -191,13 +202,8 @@ wrapper.add(component);
                 Command.of(CommandType.CANCEL_CACHE_BOOK)
         ));
 
-        refreshStatusButton = new JButton("刷新状态");
-        refreshStatusButton.setToolTipText("刷新所有书籍的缓存状态");
-        refreshStatusButton.addActionListener(e -> refreshCacheStatus());
-
         bar.add(cacheButton);
         bar.add(cancelButton);
-        bar.add(refreshStatusButton);
         return bar;
     }
 
@@ -325,6 +331,32 @@ wrapper.add(component);
     }
 
     // ==================== 回调处理方法 ====================
+
+    /**
+     * 加载离线缓存书架
+     * 异步从本地缓存读取所有已缓存的书籍，在 EDT 更新书架表格
+     * 断网时也能查看已缓存的书籍
+     */
+    private void loadOfflineBookshelf() {
+        CompletableFuture.supplyAsync(() -> BookCacheStorage.getInstance().listCachedMetas())
+                .thenAccept(metas -> ApplicationManager.getApplication().invokeLater(() -> {
+                    List<BookDTO> books = metas.stream()
+                            .map(BookCacheMeta::getBookSnapshot)
+                            .filter(Objects::nonNull)
+                            .toList();
+
+                    if (books.isEmpty()) {
+                        BOOK_SHELF_TABLE_MODEL.getDataVector().clear();
+                        this.bookshelf = null;
+                        showContent();
+                        updateCacheButtonState();
+                        return;
+                    }
+
+                    handleBooksLoaded(books);
+                    log.info("已加载离线缓存书架：{} 本", books.size());
+                }));
+    }
 
     /**
      * 处理书籍加载成功

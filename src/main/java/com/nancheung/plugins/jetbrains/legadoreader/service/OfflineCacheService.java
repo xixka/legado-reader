@@ -61,12 +61,6 @@ public final class OfflineCacheService {
      */
     private final Map<String, CacheTaskState> runningTasks = new ConcurrentHashMap<>();
 
-    /**
-     * 进度事件与 progress.enc 持久化的节流间隔
-     * 按 total / PROGRESS_THROTTLE_DIVISOR 计算实际间隔，避免大书每章都写文件/刷 UI
-     */
-    private static final int PROGRESS_THROTTLE_DIVISOR = 50;
-
     // ==================== 缓存任务状态 ====================
 
     /**
@@ -207,8 +201,6 @@ public final class OfflineCacheService {
 
             try {
                 int cachedCount = bitmap.cardinality();
-                // 节流：进度事件与 progress.enc 每 N 章才更新一次（N = max(1, total/50)）
-                int progressInterval = Math.max(1, total / PROGRESS_THROTTLE_DIVISOR);
 
                 for (int i = 0; i < total; i++) {
                     // 取消检查
@@ -240,10 +232,8 @@ public final class OfflineCacheService {
                         // 每章都持久化进度（文件很小，保证崩溃不丢进度）
                         saveProgress(storage, progress, bitmap, cachedCount, BookCacheProgress.STATUS_INCOMPLETE);
 
-                        // 节流发布进度事件（每 N 章或最后一章才刷 UI，避免 EDT 高频刷新表格）
-                        if (cachedCount % progressInterval == 0 || cachedCount == total) {
-                            publisher.publish(CacheEvent.progress(commandId, bookUrl, book.getName(), total, cachedCount));
-                        }
+                        // 每章都发布进度事件（进度条每章加 1）
+                        publisher.publish(CacheEvent.progress(commandId, bookUrl, book.getName(), total, cachedCount));
                     } catch (Exception e) {
                         log.error("缓存章节失败：book={}, index={}", book.getName(), i, e);
                         publisher.publish(CacheEvent.failed(commandId, bookUrl, book.getName(), total, cachedCount, e.getMessage()));

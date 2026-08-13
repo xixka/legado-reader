@@ -72,8 +72,16 @@ public final class AddressHistoryStorage implements PersistentStateComponent<Add
     public static final int MAX_SIZE = 4;
 
     /**
-     * Normalize server address: prepend http:// when no protocol is present.
-     * Covers legacy stored values like "127.0.0.1:1122" written before normalization existed.
+     * 规范化服务器地址：
+     * 1. 补全协议前缀（无 http:// 时自动补）
+     * 2. 补全端口（host 后无 :port 时自动补 :1122）
+     * <p>
+     * 示例：
+     * <ul>
+     *   <li>{@code 127.0.0.1} → {@code http://127.0.0.1:1122}</li>
+     *   <li>{@code 127.0.0.1:8080} → {@code http://127.0.0.1:8080}</li>
+     *   <li>{@code http://192.168.1.1} → {@code http://192.168.1.1:1122}</li>
+     * </ul>
      */
     public static String normalizeAddress(String address) {
         if (address == null) {
@@ -83,9 +91,27 @@ public final class AddressHistoryStorage implements PersistentStateComponent<Add
         if (trimmed.isEmpty()) {
             return trimmed;
         }
+
+        // 1. 补全协议前缀
         if (!trimmed.matches("^[a-zA-Z][a-zA-Z0-9+.-]*://.*")) {
-            return "http://" + trimmed;
+            trimmed = "http://" + trimmed;
         }
+
+        // 2. 补全端口：提取协议后的 host[:port][/path]，检查是否含端口
+        int schemeEnd = trimmed.indexOf("://");
+        String scheme = trimmed.substring(0, schemeEnd + 3);
+        String rest = trimmed.substring(schemeEnd + 3);
+
+        // rest 可能是 host:port/path 或 host/path 或 host:port 或 host
+        String hostPort = rest.indexOf('/') >= 0
+                ? rest.substring(0, rest.indexOf('/'))
+                : rest;
+
+        if (!hostPort.contains(":")) {
+            // 没有端口，在 host 后补 :1122
+            trimmed = scheme + hostPort + ":1122" + rest.substring(hostPort.length());
+        }
+
         return trimmed;
     }
 
