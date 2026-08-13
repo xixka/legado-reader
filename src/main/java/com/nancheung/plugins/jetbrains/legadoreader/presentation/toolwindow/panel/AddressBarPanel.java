@@ -19,7 +19,7 @@ import java.util.function.Supplier;
  * 地址栏面板组件（通用）
  * 负责管理服务器下拉框、添加按钮、刷新按钮和异步加载逻辑
  * <p>
- * 下拉框第一项固定为 {@link #OFFLINE_CACHE_OPTION}（离线缓存），
+ * 下拉框第一项固定为 {@link #OFFLINE_CACHE_OPTION}（离线），
  * 选择该项时调用 onOfflineMode 回调而非 loadAction。
  *
  * @param <T> 加载结果的数据类型
@@ -29,9 +29,9 @@ import java.util.function.Supplier;
 public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
 
     /**
-     * 离线缓存虚拟选项（非真实服务器地址）
+     * 离线模式虚拟选项（非真实服务器地址）
      */
-    public static final String OFFLINE_CACHE_OPTION = "离线缓存";
+    public static final String OFFLINE_CACHE_OPTION = "离线";
 
     // ==================== UI 组件 ====================
     private ComboBox<String> addressHistoryBox;
@@ -58,7 +58,7 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
      * 创建地址栏面板
      *
      * @param loadAction      在线模式加载动作（在后台线程执行）
-     * @param onOfflineMode   选择"离线缓存"时的回调（在 EDT 线程执行）
+     * @param onOfflineMode   选择"离线"时的回调（在 EDT 线程执行）
      * @param onLoadSucceeded 加载成功回调（在 EDT 线程执行）
      * @param onLoadFailed    加载失败回调（在 EDT 线程执行）
      */
@@ -145,12 +145,12 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
 
     /**
      * 执行刷新操作
-     * 选择"离线缓存"时调用 onOfflineMode，否则走 loadAction
+     * 选择"离线"时调用 onOfflineMode，否则走 loadAction
      */
     public void load() {
         String selected = (String) addressHistoryBox.getSelectedItem();
 
-        // 离线缓存模式：不走 API，直接调用回调（loadOfflineBookshelf 内部异步处理）
+        // 离线模式：不走 API，直接调用回调（loadOfflineBookshelf 内部异步处理）
         if (OFFLINE_CACHE_OPTION.equals(selected)) {
             refreshButton.setEnabled(false);
             onOfflineMode.run();
@@ -190,7 +190,7 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
 
     /**
      * 刷新历史记录
-     * 下拉框第一项固定为"离线缓存"，后面是真实服务器地址
+     * 下拉框第一项固定为"离线"，后面是真实服务器地址
      */
     public void refreshHistory() {
         suppressAutoLoad = true;
@@ -199,7 +199,7 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
 
             ADDRESS_HISTORY_MODEL.removeAllElements();
 
-            // 第一项固定为"离线缓存"
+            // 第一项固定为"离线"
             ADDRESS_HISTORY_MODEL.addElement(OFFLINE_CACHE_OPTION);
 
             if (history.isEmpty()) {
@@ -211,7 +211,7 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
             ADDRESS_HISTORY_MODEL.addAll(history);
             addressHistoryBox.setEnabled(true);
 
-            // 如果之前选中的是离线缓存，保持选中
+            // 如果之前选中的是离线，保持选中
             String currentSelection = (String) addressHistoryBox.getSelectedItem();
             if (OFFLINE_CACHE_OPTION.equals(currentSelection)) {
                 ADDRESS_HISTORY_MODEL.setSelectedItem(OFFLINE_CACHE_OPTION);

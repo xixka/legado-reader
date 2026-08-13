@@ -201,9 +201,8 @@ public class MainReaderPanel extends UIEventSubscriber {
     }
 
     /**
-     * 根据当前卡片动态挂载/卸载 ToolWindow 标题栏按钮
-     * - 正文面板：挂载按钮组（放在标题 "Reader" 后面）
-     * - 书架面板：清空按钮组
+     * 挂载 ToolWindow 标题栏按钮
+     * 无论当前是书架面板还是正文面板，始终显示工具栏按钮
      */
     private void updateTitleActions() {
         if (toolWindow == null) {
@@ -214,7 +213,7 @@ public class MainReaderPanel extends UIEventSubscriber {
             if (toolWindow == null) {
                 return;
             }
-            if (textBodyVisible && titleActions != null && !titleActions.isEmpty()) {
+            if (titleActions != null && !titleActions.isEmpty()) {
                 toolWindow.setTitleActions(titleActions);
             } else {
                 toolWindow.setTitleActions(Collections.emptyList());

@@ -140,6 +140,14 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
     }
 
     /**
+     * 将光标设置到文档末尾
+     */
+    public void setCaretPositionToEnd() {
+        int length = textBodyPane.getDocument().getLength();
+        textBodyPane.setCaretPosition(length);
+    }
+
+    /**
      * 无动画覆盖滑动：直接将目标位置推到视口顶部
      *
      * @param position 目标字符偏移

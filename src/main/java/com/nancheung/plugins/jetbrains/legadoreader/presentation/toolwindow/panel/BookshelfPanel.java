@@ -75,6 +75,10 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
 
     // ==================== 书架数据 ====================
     private Map<String, BookDTO> bookshelf;
+
+    // ==================== 当前模式 ====================
+    /** 当前是否处于离线模式（false = 在线服务器模式） */
+    private boolean offlineMode = false;
     private static final BiFunction<String, String, String> BOOK_MAP_KEY_FUNC = (author, name) -> author + "#" + name;
 
     // ==================== 构造函数 ====================
@@ -83,7 +87,7 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         setOpaque(false);
 
         // 1. 创建地址栏组件，传入在线加载动作、离线模式回调、成功/失败回调
-        addressBarPanel = new AddressBarPanel<>(ApiUtil::getBookshelf, this::loadOfflineBookshelf, this::handleBooksLoaded, this::handleLoadFailed);
+        addressBarPanel = new AddressBarPanel<>(ApiUtil::getBookshelf, this::loadOfflineBookshelf, this::handleOnlineBooksLoaded, this::handleLoadFailed);
         this.add(addressBarPanel, BorderLayout.NORTH);
 
         // 2. 中央内容区（使用 CardLayout 切换内容/错误）
@@ -191,7 +195,7 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         bar.setLayout(new FlowLayout(FlowLayout.LEFT, 4, 4));
         bar.setOpaque(false);
 
-        cacheButton = new JButton("离线缓存");
+        cacheButton = new JButton("缓存");
         cacheButton.setToolTipText("将选中的书籍后台缓存到本地（AES-256 加密）");
         cacheButton.setEnabled(false);
         cacheButton.addActionListener(e -> triggerCacheForSelectedBook());
@@ -255,7 +259,14 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         boolean running = book != null
                 && OfflineCacheService.getInstance().isCacheRunning(book.getBookUrl());
 
-        cacheButton.setEnabled(cacheEnabled && book != null && !running);
+        // 离线模式隐藏缓存按钮，在线模式隐藏取消缓存按钮
+        cacheButton.setVisible(!offlineMode);
+        cancelButton.setVisible(offlineMode || running);
+
+        // 仅在可见时更新启用状态
+        if (!offlineMode) {
+            cacheButton.setEnabled(cacheEnabled && book != null && !running);
+        }
         cancelButton.setEnabled(running);
 
         if (!cacheEnabled) {
@@ -343,6 +354,7 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
      * 断网时也能查看已缓存的书籍
      */
     private void loadOfflineBookshelf() {
+        offlineMode = true;
         CompletableFuture.supplyAsync(() -> BookCacheStorage.getInstance().listCachedMetas())
                 .thenAccept(metas -> ApplicationManager.getApplication().invokeLater(() -> {
                     List<BookDTO> books = metas.stream()
@@ -364,11 +376,13 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
     }
 
     /**
-     * 处理书籍加载成功
-     * 由 AddressBarPanel 回调触发
-     *
-     * @param books 书籍列表
+     * 在线模式加载成功回调：标记为非离线模式后处理书籍数据
      */
+    private void handleOnlineBooksLoaded(List<BookDTO> books) {
+        offlineMode = false;
+        handleBooksLoaded(books);
+    }
+
     private void handleBooksLoaded(List<BookDTO> books) {
         // 保存书架目录信息
         this.bookshelf = books.stream()

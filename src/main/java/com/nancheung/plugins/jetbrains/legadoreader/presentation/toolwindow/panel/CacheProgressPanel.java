@@ -40,7 +40,7 @@ public class CacheProgressPanel extends JBPanel<CacheProgressPanel> {
         setBorder(JBUI.Borders.empty(4, 8));
 
         // 状态标签
-        statusLabel = new JBLabel("离线缓存：等待中...");
+        statusLabel = new JBLabel("缓存：等待中...");
         statusLabel.setForeground(JBColor.GRAY);
 
         // 进度条
@@ -93,7 +93,7 @@ public class CacheProgressPanel extends JBPanel<CacheProgressPanel> {
         this.currentBookUrl = event.bookUrl();
         setVisible(true);
         cancelButton.setEnabled(true);
-        statusLabel.setText(String.format("离线缓存《%s》：准备中 (%d 章)",
+        statusLabel.setText(String.format("缓存《%s》：准备中 (%d 章)",
                 safeName(event.bookName()), event.totalChapters()));
         progressBar.setValue(0);
         progressBar.setString("0%");
@@ -109,7 +109,7 @@ public class CacheProgressPanel extends JBPanel<CacheProgressPanel> {
         int percent = event.progressPercent();
         progressBar.setValue(percent);
         progressBar.setString(percent + "%");
-        statusLabel.setText(String.format("离线缓存《%s》：%d / %d 章",
+        statusLabel.setText(String.format("缓存《%s》：%d / %d 章",
                 safeName(event.bookName()), event.cachedChapters(), event.totalChapters()));
     }
 

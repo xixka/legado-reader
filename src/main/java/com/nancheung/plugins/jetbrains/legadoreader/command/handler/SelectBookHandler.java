@@ -112,7 +112,7 @@ public class SelectBookHandler implements CommandHandler<SelectBookPayload> {
                         ReadingEvent.Direction.JUMP
                 ));
 
-                log.info("章节加载成功: {} (来源: {})", chapter.getTitle(), fromCache ? "离线缓存" : "服务器");
+                log.info("章节加载成功: {} (来源: {})", chapter.getTitle(), fromCache ? "本地缓存" : "服务器");
 
                 // 异步同步进度（离线模式下静默失败）
                 if (!fromCache) {

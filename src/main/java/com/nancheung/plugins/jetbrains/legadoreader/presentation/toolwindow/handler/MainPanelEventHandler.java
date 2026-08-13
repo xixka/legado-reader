@@ -175,8 +175,12 @@ public class MainPanelEventHandler {
         // 应用样式（在 setText 之后）
         textBodyPanel.applyStyleFromSettings();
 
-        // 设置光标位置
-        textBodyPanel.setCaretPosition(event.chapterPosition());
+        // 设置光标位置：上一章定位到文档末尾，其他情况使用事件中的位置
+        if (event.direction() == ReadingEvent.Direction.PREVIOUS) {
+            textBodyPanel.setCaretPositionToEnd();
+        } else {
+            textBodyPanel.setCaretPosition(event.chapterPosition());
+        }
     }
 
     /**
