@@ -154,7 +154,7 @@ public class MainPanelEventHandler {
         // 设置加载提示
         textBodyPanel.setText("加载中...");
 
-        // 获取焦点
+        // 获取焦点到文本面板，使方向键快捷键生效
         textBodyPanel.requestTextFocus();
     }
 
@@ -181,6 +181,9 @@ public class MainPanelEventHandler {
         } else {
             textBodyPanel.setCaretPosition(event.chapterPosition());
         }
+
+        // 请求焦点到文本面板，使方向键快捷键生效
+        textBodyPanel.requestTextFocus();
     }
 
     /**
