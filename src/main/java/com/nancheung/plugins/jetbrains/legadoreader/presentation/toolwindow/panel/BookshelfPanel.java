@@ -236,6 +236,10 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
             return null;
         }
         TableModel model = bookshelfTable.getModel();
+        // 防御：表格正在填充时列数可能不足，避免 ArrayIndexOutOfBoundsException
+        if (model.getColumnCount() < 4 || row >= model.getRowCount()) {
+            return null;
+        }
         String name = String.valueOf(model.getValueAt(row, 0));
         String author = String.valueOf(model.getValueAt(row, 3));
         return getBook(author, name);

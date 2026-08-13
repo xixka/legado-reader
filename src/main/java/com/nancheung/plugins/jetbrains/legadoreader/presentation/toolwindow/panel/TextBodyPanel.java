@@ -157,6 +157,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
 
     /**
      * 向下翻一页（按视口高度逐行计算，部分可见的行不计入）
+     * 新视口顶部 = 当前视口最后一个完整可见行的下一行行首
      *
      * @return 跳转后的行首字符偏移；已到底则返回 -1
      */
@@ -171,37 +172,43 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             int totalLen = textBodyPane.getDocument().getLength();
             if (totalLen == 0) return -1;
 
-            // 找到 viewport 底部像素位置对应的字符偏移（可能在一行中间）
+            // 找到 viewport 底部像素位置对应的字符偏移
             int pos = findPositionAtY(viewBottom);
 
-            // 获取该位置所在行的 baseline
+            // 获取该位置所在行的信息
             Rectangle rect = textBodyPane.modelToView2D(pos).getBounds();
             if (rect == null) return -1;
             int lineTop = rect.y;
             int lineHeight = rect.height;
 
-            // 判断此行是否完整可见（行底部 ≤ viewBottom）
+            // 确定"当前视口最后一个完整可见行"的字符位置
+            int lastFullLinePos;
             if ((lineTop + lineHeight) > viewBottom) {
-                // 行不完整，回退到上一行末尾
+                // 底部行不完整，最后一个完整行是上一行
                 if (lineTop <= 0) {
-                    pos = 0;
+                    lastFullLinePos = 0;
                 } else {
-                    pos = findPositionAtY(lineTop - 1);
-                    if (pos <= 0) pos = 0;
+                    lastFullLinePos = findPositionAtY(lineTop - 1);
                 }
+            } else {
+                // 底部行完整，它就是最后一个完整行
+                lastFullLinePos = pos;
             }
 
-            // 确保跳过了当前 viewport 内的内容（至少推进一行）
-            int topPos = findPositionAtY(viewTop + 1);
-            if (pos <= topPos) {
-                pos = findNextLineStart(pos, totalLen);
+            // 新视口顶部 = 最后一个完整行的下一行行首
+            int newTop = findNextLineStart(lastFullLinePos, totalLen);
+
+            // 确保至少推进了一行（避免原地不动）
+            int currentTopPos = findPositionAtY(viewTop + 1);
+            if (newTop <= currentTopPos) {
+                newTop = findNextLineStart(currentTopPos, totalLen);
             }
 
-            if (pos >= totalLen) return -1;
+            if (newTop >= totalLen) return -1;
 
-            scrollToPosition(pos);
-            setCaretPosition(pos);
-            return pos;
+            scrollToPosition(newTop);
+            setCaretPosition(newTop);
+            return newTop;
         } catch (BadLocationException e) {
             return -1;
         }
@@ -209,6 +216,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
 
     /**
      * 向上翻一页（按视口高度逐行计算）
+     * 新视口顶部对齐到目标行的行首，避免截断导致少翻
      *
      * @return 跳转后的行首字符偏移；已到顶则返回 -1
      */
@@ -228,6 +236,29 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             scrollToPosition(0);
             setCaretPosition(0);
             return 0;
+        }
+
+        // 对齐到该行行首，避免 scrollToPosition 把行中间推到视口顶部
+        Rectangle rect;
+        try {
+            rect = textBodyPane.modelToView2D(pos).getBounds();
+        } catch (BadLocationException e) {
+            rect = null;
+        }
+        if (rect != null) {
+            int lineBaseline = rect.y;
+            // 往前扫到这一行的真正开头
+            int lineStart = pos;
+            while (lineStart > 0) {
+                try {
+                    Rectangle prevRect = textBodyPane.modelToView2D(lineStart - 1).getBounds();
+                    if (prevRect == null || prevRect.y != lineBaseline) break;
+                    lineStart--;
+                } catch (BadLocationException e) {
+                    break;
+                }
+            }
+            pos = lineStart;
         }
 
         scrollToPosition(pos);
