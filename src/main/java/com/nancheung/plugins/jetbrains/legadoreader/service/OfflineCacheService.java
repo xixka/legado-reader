@@ -237,9 +237,11 @@ public final class OfflineCacheService {
                         bitmap.set(i);
                         cachedCount++;
 
-                        // 节流持久化进度 + 发布进度事件（每 N 章或最后一章才触发）
+                        // 每章都持久化进度（文件很小，保证崩溃不丢进度）
+                        saveProgress(storage, progress, bitmap, cachedCount, BookCacheProgress.STATUS_INCOMPLETE);
+
+                        // 节流发布进度事件（每 N 章或最后一章才刷 UI，避免 EDT 高频刷新表格）
                         if (cachedCount % progressInterval == 0 || cachedCount == total) {
-                            saveProgress(storage, progress, bitmap, cachedCount, BookCacheProgress.STATUS_INCOMPLETE);
                             publisher.publish(CacheEvent.progress(commandId, bookUrl, book.getName(), total, cachedCount));
                         }
                     } catch (Exception e) {
