@@ -1,5 +1,6 @@
 package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
 
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;

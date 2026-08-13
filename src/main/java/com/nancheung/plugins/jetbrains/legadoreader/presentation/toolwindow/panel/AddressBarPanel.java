@@ -121,7 +121,7 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
      */
     private void addServer() {
         String input = JOptionPane.showInputDialog(
-                SwingUtilities.getWindowComponent(this),
+                SwingUtilities.getWindowAncestor(this),
                 "请输入阅读服务器地址：\n（不带端口自动补 1122，如 127.0.0.1）",
                 "添加服务器",
                 JOptionPane.PLAIN_MESSAGE
