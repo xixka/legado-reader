@@ -14,6 +14,8 @@ import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSessionState;
 import com.nancheung.plugins.jetbrains.legadoreader.service.OfflineCacheService;
 import com.nancheung.plugins.jetbrains.legadoreader.service.ReadingSessionStateMachine;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
+import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheMeta;
+import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheProgress;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -71,8 +73,13 @@ public class SelectBookHandler implements CommandHandler<SelectBookPayload> {
         // 5. 异步获取章节列表和内容
         CompletableFuture.runAsync(() -> {
             try {
-                // 获取章节列表
-                List<BookChapterDTO> chapters = ApiUtil.getChapterList(book.getBookUrl());
+                // 获取章节列表：优先从离线缓存读取（断网时也能打开已缓存的书），未命中再走 API
+                OfflineCacheService cacheService = OfflineCacheService.getInstance();
+                List<BookChapterDTO> chapters = cacheService.tryLoadChaptersFromCache(book.getBookUrl());
+                boolean fromCache = chapters != null;
+                if (!fromCache) {
+                    chapters = ApiUtil.getChapterList(book.getBookUrl());
+                }
 
                 // 边界检查
                 if (chapterIndex < 0 || chapterIndex >= chapters.size()) {
@@ -82,7 +89,7 @@ public class SelectBookHandler implements CommandHandler<SelectBookPayload> {
                 BookChapterDTO chapter = chapters.get(chapterIndex);
 
                 // 获取章节内容：优先从离线缓存读取，未命中再走 API
-                String content = OfflineCacheService.getInstance().tryLoadChapterFromCache(book.getBookUrl(), chapterIndex);
+                String content = cacheService.tryLoadChapterFromCache(book.getBookUrl(), chapterIndex);
                 if (content == null) {
                     content = ApiUtil.getBookContent(book.getBookUrl(), chapterIndex);
                 }
@@ -105,10 +112,12 @@ public class SelectBookHandler implements CommandHandler<SelectBookPayload> {
                         ReadingEvent.Direction.JUMP
                 ));
 
-                log.info("章节加载成功: {}", chapter.getTitle());
+                log.info("章节加载成功: {} (来源: {})", chapter.getTitle(), fromCache ? "离线缓存" : "服务器");
 
-                // 异步同步进度
-                syncProgressAsync(book, chapterIndex, chapter.getTitle(), position);
+                // 异步同步进度（离线模式下静默失败）
+                if (!fromCache) {
+                    syncProgressAsync(book, chapterIndex, chapter.getTitle(), position);
+                }
 
             } catch (Exception e) {
                 // 状态转换到错误

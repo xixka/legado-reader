@@ -22,7 +22,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -63,9 +62,10 @@ public final class OfflineCacheService {
     private final Map<String, CacheTaskState> runningTasks = new ConcurrentHashMap<>();
 
     /**
-     * 每章缓存后的延迟（毫秒），降低对阅读 APP 服务端的并发压力
+     * 进度事件与 progress.enc 持久化的节流间隔
+     * 按 total / PROGRESS_THROTTLE_DIVISOR 计算实际间隔，避免大书每章都写文件/刷 UI
      */
-    private static final long CHAPTER_DELAY_MS = 80L;
+    private static final int PROGRESS_THROTTLE_DIVISOR = 50;
 
     // ==================== 缓存任务状态 ====================
 
@@ -206,14 +206,16 @@ public final class OfflineCacheService {
             }
 
             try {
-                AtomicInteger cachedCount = new AtomicInteger(bitmap.cardinality());
+                int cachedCount = bitmap.cardinality();
+                // 节流：进度事件与 progress.enc 每 N 章才更新一次（N = max(1, total/50)）
+                int progressInterval = Math.max(1, total / PROGRESS_THROTTLE_DIVISOR);
 
                 for (int i = 0; i < total; i++) {
                     // 取消检查
                     if (state.isCanceled() || Thread.currentThread().isInterrupted()) {
-                        log.info("缓存被取消：book={}, progress={}/{}", book.getName(), cachedCount.get(), total);
-                        publisher.publish(CacheEvent.canceled(commandId, bookUrl, book.getName(), total, cachedCount.get()));
-                        saveProgress(storage, progress, bitmap, cachedCount.get(), BookCacheProgress.STATUS_INCOMPLETE);
+                        log.info("缓存被取消：book={}, progress={}/{}", book.getName(), cachedCount, total);
+                        publisher.publish(CacheEvent.canceled(commandId, bookUrl, book.getName(), total, cachedCount));
+                        saveProgress(storage, progress, bitmap, cachedCount, BookCacheProgress.STATUS_INCOMPLETE);
                         return;
                     }
 
@@ -224,7 +226,6 @@ public final class OfflineCacheService {
 
                     // 缓存单章
                     try {
-                        BookChapterDTO chapter = chapters.get(i);
                         String content = ApiUtil.getBookContent(bookUrl, i);
 
                         if (content == null) {
@@ -232,34 +233,19 @@ public final class OfflineCacheService {
                             continue;
                         }
 
-                        // chapter 仅用于日志，避免 IDE 提示未使用
-                        log.debug("正在缓存：book={}, index={}, title={}",
-                                book.getName(), i, chapter.getTitle());
-
                         storage.saveChapter(bookUrl, i, content);
                         bitmap.set(i);
-                        cachedCount.getAndIncrement();
+                        cachedCount++;
 
-                        // 持久化进度（每章保存一次，避免崩溃丢失）
-                        saveProgress(storage, progress, bitmap, cachedCount.get(), BookCacheProgress.STATUS_INCOMPLETE);
-
-                        // 发布进度事件
-                        publisher.publish(CacheEvent.progress(commandId, bookUrl, book.getName(), total, cachedCount.get()));
-
-                        // 节流：降低服务端压力
-                        if (i < total - 1) {
-                            Thread.sleep(CHAPTER_DELAY_MS);
+                        // 节流持久化进度 + 发布进度事件（每 N 章或最后一章才触发）
+                        if (cachedCount % progressInterval == 0 || cachedCount == total) {
+                            saveProgress(storage, progress, bitmap, cachedCount, BookCacheProgress.STATUS_INCOMPLETE);
+                            publisher.publish(CacheEvent.progress(commandId, bookUrl, book.getName(), total, cachedCount));
                         }
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        log.info("缓存被中断：book={}, progress={}/{}", book.getName(), cachedCount.get(), total);
-                        publisher.publish(CacheEvent.canceled(commandId, bookUrl, book.getName(), total, cachedCount.get()));
-                        saveProgress(storage, progress, bitmap, cachedCount.get(), BookCacheProgress.STATUS_INCOMPLETE);
-                        return;
                     } catch (Exception e) {
                         log.error("缓存章节失败：book={}, index={}", book.getName(), i, e);
-                        publisher.publish(CacheEvent.failed(commandId, bookUrl, book.getName(), total, cachedCount.get(), e.getMessage()));
-                        saveProgress(storage, progress, bitmap, cachedCount.get(), BookCacheProgress.STATUS_INCOMPLETE);
+                        publisher.publish(CacheEvent.failed(commandId, bookUrl, book.getName(), total, cachedCount, e.getMessage()));
+                        saveProgress(storage, progress, bitmap, cachedCount, BookCacheProgress.STATUS_INCOMPLETE);
                         return;
                     }
                 }
@@ -340,6 +326,26 @@ public final class OfflineCacheService {
             return false;
         }
         return BookCacheStorage.getInstance().hasChapter(bookUrl, index);
+    }
+
+    /**
+     * 尝试从缓存读取章节列表（用于断网时打开已缓存的书）
+     * <p>
+     * 从 meta.enc 读取章节目录，缓存未启用或未命中时返回 null。
+     *
+     * @param bookUrl 书籍 URL
+     * @return 章节列表；未命中返回 null
+     */
+    public List<BookChapterDTO> tryLoadChaptersFromCache(String bookUrl) {
+        if (!isCacheEnabled() || bookUrl == null) {
+            return null;
+        }
+        BookCacheMeta meta = BookCacheStorage.getInstance().loadMeta(bookUrl);
+        if (meta == null || meta.getChapters() == null || meta.getChapters().isEmpty()) {
+            return null;
+        }
+        log.debug("从缓存读取章节列表：book={}, chapters={}", meta.getName(), meta.getTotalChapters());
+        return meta.getChapters();
     }
 
     /**

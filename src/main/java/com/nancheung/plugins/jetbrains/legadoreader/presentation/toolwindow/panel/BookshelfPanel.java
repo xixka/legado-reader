@@ -55,10 +55,13 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
     private final JBTable bookshelfTable;
     private final JBPanel<?> bookshelfContentPanel;
     private final CardLayout bookshelfContentLayout;
+    private JButton cacheButton;
+    private JButton cancelButton;
+    private JButton refreshStatusButton;
 
     // ==================== 数据模型（静态，多窗口共享） ====================
     private static final DefaultTableModel BOOK_SHELF_TABLE_MODEL =
-            new DefaultTableModel(null, new String[]{"name", "current", "new", "author"}) {
+            new DefaultTableModel(null, new String[]{"书名", "当前章节", "最新章节", "作者", "缓存状态"}) {
                 @Override
                 public boolean isCellEditable(int row, int column) {
                     return false;
@@ -86,6 +89,10 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         // 2.1 内容卡片：书架表格
         bookshelfTable = createBookshelfTable();
         bookshelfTable.setOpaque(false);
+        // 设置列宽：缓存状态列收紧
+        bookshelfTable.getColumnModel().getColumn(0).setPreferredWidth(120);
+        bookshelfTable.getColumnModel().getColumn(4).setPreferredWidth(80);
+        bookshelfTable.getColumnModel().getColumn(4).setMaxWidth(100);
         JBScrollPane shelfScrollPane = new JBScrollPane(bookshelfTable);
         shelfScrollPane.setOpaque(false);
         shelfScrollPane.getViewport().setOpaque(false);
@@ -96,7 +103,10 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
 
         this.add(bookshelfContentPanel, BorderLayout.CENTER);
 
-        // 3. 绑定事件监听器
+        // 3. 底部缓存操作按钮栏
+        this.add(createCacheButtonBar(), BorderLayout.SOUTH);
+
+        // 4. 绑定事件监听器
         bindEventListeners();
 
         // 默认显示内容
@@ -143,76 +153,66 @@ wrapper.add(component);
      * 绑定事件监听器
      */
     private void bindEventListeners() {
-        // 表格点击
+        // 表格点击：双击进入阅读
         bookshelfTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent evt) {
-                handleBookSelection(evt);
+                if (evt.getClickCount() >= 2) {
+                    handleBookSelection(evt);
+                }
             }
+        });
 
-            @Override
-            public void mousePressed(MouseEvent evt) {
-                showContextMenuIfNeeded(evt);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent evt) {
-                showContextMenuIfNeeded(evt);
+        // 选中行变化时更新按钮启用状态
+        bookshelfTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                updateCacheButtonState();
             }
         });
     }
 
     /**
-     * 在右键点击时弹出上下文菜单
+     * 创建底部缓存按钮栏
      */
-    private void showContextMenuIfNeeded(MouseEvent evt) {
-        if (!evt.isPopupTrigger()) {
-            return;
-        }
-        int row = bookshelfTable.rowAtPoint(evt.getPoint());
-        if (row < 0) {
-            return;
-        }
-        // 选中该行
-        bookshelfTable.setRowSelectionInterval(row, row);
+    private JComponent createCacheButtonBar() {
+        JBPanel<?> bar = new JBPanel<>();
+        bar.setLayout(new FlowLayout(FlowLayout.LEFT, 4, 4));
+        bar.setOpaque(false);
 
-        BookDTO book = getBookAtRow(row);
-        if (book == null) {
-            return;
-        }
+        cacheButton = new JButton("离线缓存");
+        cacheButton.setToolTipText("将选中的书籍后台缓存到本地（AES-256 加密）");
+        cacheButton.setEnabled(false);
+        cacheButton.addActionListener(e -> triggerCacheForSelectedBook());
 
-        JPopupMenu popup = new JPopupMenu();
-
-        // 离线缓存菜单项
-        JMenuItem cacheItem = new JMenuItem("离线缓存本书");
-        boolean cacheEnabled = Boolean.TRUE.equals(PluginSettingsStorage.getInstance().getState().cacheEnabled);
-        cacheItem.setEnabled(cacheEnabled);
-        if (!cacheEnabled) {
-            cacheItem.setToolTipText("请在设置中开启离线缓存");
-        }
-        if (OfflineCacheService.getInstance().isCacheRunning(book.getBookUrl())) {
-            cacheItem.setText("正在缓存中...");
-            cacheItem.setEnabled(false);
-        }
-        cacheItem.addActionListener(e -> triggerBookCache(book));
-        popup.add(cacheItem);
-
-        // 取消缓存菜单项（仅当该任务运行中时启用）
-        JMenuItem cancelItem = new JMenuItem("取消缓存");
-        cancelItem.setEnabled(OfflineCacheService.getInstance().isCacheRunning(book.getBookUrl()));
-        cancelItem.addActionListener(e -> CommandBus.getInstance().dispatchAsync(
+        cancelButton = new JButton("取消缓存");
+        cancelButton.setToolTipText("取消正在进行的缓存任务");
+        cancelButton.setEnabled(false);
+        cancelButton.addActionListener(e -> CommandBus.getInstance().dispatchAsync(
                 Command.of(CommandType.CANCEL_CACHE_BOOK)
         ));
-        popup.add(cancelItem);
 
-        popup.show(bookshelfTable, evt.getX(), evt.getY());
+        refreshStatusButton = new JButton("刷新状态");
+        refreshStatusButton.setToolTipText("刷新所有书籍的缓存状态");
+        refreshStatusButton.addActionListener(e -> refreshCacheStatus());
+
+        bar.add(cacheButton);
+        bar.add(cancelButton);
+        bar.add(refreshStatusButton);
+        return bar;
     }
 
     /**
-     * 触发某本书的离线缓存
+     * 触发当前选中书籍的离线缓存
      */
-    private void triggerBookCache(BookDTO book) {
-        // 不预先获取章节列表，由 handler 内部异步获取
+    private void triggerCacheForSelectedBook() {
+        BookDTO book = getSelectedBook();
+        if (book == null) {
+            return;
+        }
+        if (OfflineCacheService.getInstance().isCacheRunning(book.getBookUrl())) {
+            log.info("该书正在缓存中，忽略重复请求");
+            return;
+        }
         CommandBus.getInstance().dispatchAsync(Command.of(
                 CommandType.CACHE_BOOK,
                 new CacheBookPayload(book, null)
@@ -221,9 +221,10 @@ wrapper.add(component);
     }
 
     /**
-     * 通过表格行号获取书籍
+     * 获取当前选中的书籍
      */
-    private BookDTO getBookAtRow(int row) {
+    private BookDTO getSelectedBook() {
+        int row = bookshelfTable.getSelectedRow();
         if (row < 0) {
             return null;
         }
@@ -231,6 +232,80 @@ wrapper.add(component);
         String name = String.valueOf(model.getValueAt(row, 0));
         String author = String.valueOf(model.getValueAt(row, 3));
         return getBook(author, name);
+    }
+
+    /**
+     * 根据缓存设置与运行状态更新按钮启用状态
+     */
+    private void updateCacheButtonState() {
+        BookDTO book = getSelectedBook();
+        boolean cacheEnabled = Boolean.TRUE.equals(
+                PluginSettingsStorage.getInstance().getState().cacheEnabled);
+        boolean running = book != null
+                && OfflineCacheService.getInstance().isCacheRunning(book.getBookUrl());
+
+        cacheButton.setEnabled(cacheEnabled && book != null && !running);
+        cancelButton.setEnabled(running);
+
+        if (!cacheEnabled) {
+            cacheButton.setToolTipText("请在 设置 → Tools → Legado Reader 中开启离线缓存");
+        } else if (book == null) {
+            cacheButton.setToolTipText("请先在表格中选中一本书");
+        } else if (running) {
+            cacheButton.setToolTipText("正在缓存中...");
+        } else {
+            cacheButton.setToolTipText("将选中的书籍后台缓存到本地（AES-256 加密）");
+        }
+    }
+
+    /**
+     * 刷新所有书籍的缓存状态列
+     */
+    public void refreshCacheStatus() {
+        int rowCount = BOOK_SHELF_TABLE_MODEL.getRowCount();
+        if (rowCount == 0 || bookshelf == null) {
+            return;
+        }
+        for (int row = 0; row < rowCount; row++) {
+            String name = String.valueOf(BOOK_SHELF_TABLE_MODEL.getValueAt(row, 0));
+            String author = String.valueOf(BOOK_SHELF_TABLE_MODEL.getValueAt(row, 3));
+            BookDTO book = getBook(author, name);
+            String statusText = computeCacheStatusText(book);
+            BOOK_SHELF_TABLE_MODEL.setValueAt(statusText, row, 4);
+        }
+        updateCacheButtonState();
+    }
+
+    /**
+     * 计算某本书的缓存状态展示文本
+     */
+    private String computeCacheStatusText(BookDTO book) {
+        if (book == null) {
+            return "-";
+        }
+        String bookUrl = book.getBookUrl();
+        if (OfflineCacheService.getInstance().isCacheRunning(bookUrl)) {
+            com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheProgress progress =
+                    OfflineCacheService.getInstance().getProgress(bookUrl);
+            int cached = progress != null ? progress.getCachedChapters() : 0;
+            int total = progress != null ? progress.getTotalChapters() : 0;
+            return total > 0 ? "缓存中 " + (cached * 100 / total) + "%" : "缓存中";
+        }
+        com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheMeta meta =
+                OfflineCacheService.getInstance().getMeta(bookUrl);
+        if (meta == null) {
+            return "未缓存";
+        }
+        com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheProgress progress =
+                OfflineCacheService.getInstance().getProgress(bookUrl);
+        if (progress != null && "COMPLETE".equals(progress.getStatus())) {
+            return "已缓存";
+        }
+        if (progress != null && progress.getTotalChapters() > 0) {
+            int percent = progress.getCachedChapters() * 100 / progress.getTotalChapters();
+            return "已缓存 " + percent + "%";
+        }
+        return "部分缓存";
     }
 
     // ==================== 状态切换方法 ====================
@@ -285,22 +360,26 @@ wrapper.add(component);
         // 清空表格
         BOOK_SHELF_TABLE_MODEL.getDataVector().clear();
 
-        // 添加表格数据
-        books.stream().map(book -> {
+        // 添加表格数据（含缓存状态列）
+        books.forEach(book -> {
             Vector<String> bookVector = new Vector<>();
             bookVector.add(book.getName());
             bookVector.add(book.getDurChapterTitle());
             bookVector.add(book.getLatestChapterTitle());
             bookVector.add(book.getAuthor());
-            return bookVector;
-        }).forEach(BOOK_SHELF_TABLE_MODEL::addRow);
+            bookVector.add(computeCacheStatusText(book));
+            BOOK_SHELF_TABLE_MODEL.addRow(bookVector);
+        });
 
         // 显示内容（隐藏错误）
         showContent();
+
+        // 刷新按钮状态
+        updateCacheButtonState();
     }
 
     /**
-     * 处理书籍选择
+     * 处理书籍选择（双击进入阅读）
      */
     private void handleBookSelection(MouseEvent evt) {
         int row = bookshelfTable.rowAtPoint(evt.getPoint());
