@@ -59,7 +59,17 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         textBodyContentPanel.setOpaque(false);
 
         // 1.1 内容卡片：正文
-        textBodyPane = new JTextPane();
+        // 重写 getScrollableTracksViewportHeight() 始终返回 false：
+        // JTextPane 默认在「首选高度 ≤ 视口高度」时会让 JScrollPane 把视图拉伸到视口高度，
+        // 导致 setViewPosition 被锁死在 (0,0)、章内翻页失效。
+        // 隐藏滚动条后视口变宽 → 文本重新换行 → 首选高度减小，极易触发此条件。
+        // 固定返回 false 可确保视图始终保持自然高度，setViewPosition 永远可用。
+        textBodyPane = new JTextPane() {
+            @Override
+            public boolean getScrollableTracksViewportHeight() {
+                return false;
+            }
+        };
         textBodyPane.setEditable(false);
         textBodyPane.setFocusable(false); // 不可聚焦 → 不显示光标
 
@@ -459,6 +469,11 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
                 hide ? ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER
                      : ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
         );
+        // 滚动条策略变更会导致视口宽度变化（隐藏时变宽、显示时变窄），
+        // 文本会随之重新换行，必须立即重排，否则后续 modelToView2D / viewToModel2D
+        // 会基于过时布局返回错误坐标，造成翻页计算异常。
+        textScrollPane.revalidate();
+        textScrollPane.repaint();
     }
 
     /**
