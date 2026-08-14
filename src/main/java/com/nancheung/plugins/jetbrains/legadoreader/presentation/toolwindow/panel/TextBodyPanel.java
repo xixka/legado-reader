@@ -148,11 +148,14 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
      * 执行下一页：章内翻页，已到底部则触发下一章
      */
     private void doPageDown() {
+        log.info("doPageDown: 方向键触发翻页, canPageDown={}", canPageDown());
         if (canPageDown()) {
             int newPos = pageDown();
+            log.info("doPageDown: pageDown 返回 {}", newPos);
             if (newPos >= 0) return;
         }
         // 已到底部，触发下一章
+        log.info("doPageDown: 触发下一章");
         CommandBus.getInstance().dispatchAsync(Command.of(CommandType.NEXT_CHAPTER));
     }
 
@@ -305,6 +308,9 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         int viewTop = viewport.getViewPosition().y;
         int viewBottom = viewTop + viewHeight;
 
+        log.info("pageDown: viewSize={}, extentSize={}, viewPosition.y={}, viewBottom={}",
+                viewport.getViewSize(), viewport.getExtentSize(), viewTop, viewBottom);
+
         try {
             int totalLen = textBodyPane.getDocument().getLength();
             if (totalLen == 0) return -1;
@@ -325,19 +331,28 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             }
 
             // newTop 已超出文档末尾 → 到底
-            if (newTop >= totalLen) return -1;
+            if (newTop >= totalLen) {
+                log.info("pageDown: newTop={} >= totalLen={}, 返回 -1", newTop, totalLen);
+                return -1;
+            }
 
             // 关键：newTop 所在行必须在当前视口中完全不可见
             // 如果可见（剩余内容不足一页），不滚动，返回 -1 触发下一章
             Rectangle newTopRect = textBodyPane.modelToView2D(newTop).getBounds();
             if (newTopRect == null || newTopRect.y < viewBottom) {
+                log.info("pageDown: newTopRect.y={} < viewBottom={}, 返回 -1",
+                        newTopRect == null ? "null" : newTopRect.y, viewBottom);
                 return -1;
             }
 
+            log.info("pageDown: 准备滚动到 newTop={}, newTopRect.y={}", newTop, newTopRect.y);
             scrollToPosition(newTop);
+            int newViewTop = viewport.getViewPosition().y;
+            log.info("pageDown: scrollToPosition 后 viewPosition.y={} (期望={})", newViewTop, newTopRect.y);
             setCaretPosition(newTop);
             return newTop;
         } catch (BadLocationException e) {
+            log.warn("pageDown: BadLocationException", e);
             return -1;
         }
     }

@@ -19,8 +19,8 @@ public class NextPageAction extends AnAction {
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
+        log.info("NextPageAction: Ctrl+滚轮翻页 Action 已触发");
         CommandBus.getInstance().dispatchAsync(Command.of(CommandType.NEXT_PAGE));
-        log.debug("翻到下一页");
     }
 
     @Override
