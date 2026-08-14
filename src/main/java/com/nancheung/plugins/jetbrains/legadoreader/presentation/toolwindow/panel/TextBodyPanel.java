@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import javax.swing.*;
 import javax.swing.text.BadLocationException;
 import java.awt.*;
+import java.awt.event.KeyEvent;
 
 /**
  * 正文面板组件
@@ -59,15 +60,11 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         // 1.1 内容卡片：正文
         textBodyPane = new JTextPane();
         textBodyPane.setEditable(false);
-        // 使文本面板可聚焦，方向键 KeyBindings 才能生效
-        textBodyPane.setFocusable(true);
-        textBodyPane.getCaret().setVisible(false);
+        textBodyPane.setFocusable(false); // 不可聚焦 → 不显示光标
 
         textScrollPane = new JBScrollPane(textBodyPane);
         textScrollPane.setOpaque(false);
         textScrollPane.getViewport().setOpaque(false);
-        // 禁用滚动面板自身的方向键处理，避免与翻页快捷键冲突
-        disableScrollPaneArrowKeys(textScrollPane);
         textBodyContentPanel.add(textScrollPane, CARD_CONTENT);
 
         // 1.2 错误卡片
@@ -78,73 +75,47 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         // 默认显示内容
         showContent();
 
-        // 注册方向键快捷键（仅在文本面板有焦点时生效，失去焦点自动失效）
-        registerArrowKeyBindings();
+        // 注册方向键快捷键（通过 KeyEventDispatcher，焦点在面板内时生效）
+        registerArrowKeyDispatcher();
     }
 
     /**
-     * 注册方向键快捷键到文本面板
+     * 注册方向键全局监听器，仅在焦点位于本面板内时响应
      * ← 上一页  |  → 下一页  |  ↑ 上一章  |  ↓ 下一章
-     * 使用 WHEN_FOCUSED，焦点在文本面板时生效，失去焦点自动失效
      */
-    private void registerArrowKeyBindings() {
-        InputMap inputMap = textBodyPane.getInputMap(JComponent.WHEN_FOCUSED);
-        ActionMap actionMap = textBodyPane.getActionMap();
+    private void registerArrowKeyDispatcher() {
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(e -> {
+            if (e.getID() != KeyEvent.KEY_PRESSED) return false;
+            // 焦点不在本面板内则不处理（失去焦点自动失效）
+            if (!isFocusInsidePanel()) return false;
 
-        // ← 上一页
-        inputMap.put(KeyStroke.getKeyStroke("LEFT"), "pageUp");
-        actionMap.put("pageUp", new AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                doPageUp();
-            }
-        });
-
-        // → 下一页
-        inputMap.put(KeyStroke.getKeyStroke("RIGHT"), "pageDown");
-        actionMap.put("pageDown", new AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                doPageDown();
-            }
-        });
-
-        // ↑ 上一章
-        inputMap.put(KeyStroke.getKeyStroke("UP"), "previousChapter");
-        actionMap.put("previousChapter", new AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                CommandBus.getInstance().dispatchAsync(Command.of(CommandType.PREVIOUS_CHAPTER));
-            }
-        });
-
-        // ↓ 下一章
-        inputMap.put(KeyStroke.getKeyStroke("DOWN"), "nextChapter");
-        actionMap.put("nextChapter", new AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                CommandBus.getInstance().dispatchAsync(Command.of(CommandType.NEXT_CHAPTER));
+            switch (e.getKeyCode()) {
+                case KeyEvent.VK_LEFT:
+                    doPageUp();
+                    return true;
+                case KeyEvent.VK_RIGHT:
+                    doPageDown();
+                    return true;
+                case KeyEvent.VK_UP:
+                    CommandBus.getInstance().dispatchAsync(Command.of(CommandType.PREVIOUS_CHAPTER));
+                    return true;
+                case KeyEvent.VK_DOWN:
+                    CommandBus.getInstance().dispatchAsync(Command.of(CommandType.NEXT_CHAPTER));
+                    return true;
+                default:
+                    return false;
             }
         });
     }
 
     /**
-     * 禁用 JBScrollPane 自带的方向键滚动行为，避免与翻页快捷键冲突
+     * 检查当前焦点是否在本面板内
      */
-    private void disableScrollPaneArrowKeys(JScrollPane scrollPane) {
-        InputMap im = scrollPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
-        ActionMap am = scrollPane.getActionMap();
-        // 注册空动作，将方向键绑定到空操作，防止滚动面板消费方向键事件
-        am.put("none", new AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                // no-op
-            }
-        });
-        im.put(KeyStroke.getKeyStroke("UP"), "none");
-        im.put(KeyStroke.getKeyStroke("DOWN"), "none");
-        im.put(KeyStroke.getKeyStroke("LEFT"), "none");
-        im.put(KeyStroke.getKeyStroke("RIGHT"), "none");
+    private boolean isFocusInsidePanel() {
+        Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+        if (focusOwner == null) return false;
+        // focusOwner 是本面板或本面板的子孙 → true
+        return SwingUtilities.isDescendingFrom(focusOwner, this);
     }
 
     /**
@@ -284,22 +255,20 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             // 找到视口内第一行的行首位置（用于确保至少推进一行）
             int firstLineStart = findLineStart(findPositionAtY(viewTop));
 
-            // 从 viewBottom 向上找最后一个【完整可见行】的行首
-            // 完整可见行 = 行的底部像素 <= viewBottom
-            // 使用 viewBottom - 1 避免落在边界时的取整歧义
-            int pos = findPositionAtY(viewBottom - 1);
-            int lastFullLineStart = findLineStart(pos);
-
-            // 验证该行是否完整可见（底部 <= viewBottom）
+            // 找到 viewBottom 对应的字符，判断其所在行是否完全可见
+            int pos = findPositionAtY(viewBottom);
             Rectangle rect = textBodyPane.modelToView2D(pos).getBounds();
             if (rect == null) return -1;
-            if (rect.y + rect.height > viewBottom) {
-                // 该行不完整，取上一行
-                lastFullLineStart = findPreviousLineStart(lastFullLineStart);
-            }
 
-            // 新视口顶部 = 最后一个完整可见行的下一行行首
-            int newTop = findNextLineStartAfter(lastFullLineStart, totalLen);
+            int newTop;
+            if (rect.y >= viewBottom) {
+                // 该行行首已在视口底部之下（完全不可见），直接作为新视口顶部
+                newTop = findLineStart(pos);
+            } else {
+                // 该行在视口底部部分可见，新视口从它的【下一行】开始（零重叠）
+                int lineStart = findLineStart(pos);
+                newTop = findNextLineStartAfter(lineStart, totalLen);
+            }
 
             // 确保至少推进了一行（避免因像素误差导致原地不动）
             if (newTop <= firstLineStart) {
@@ -430,40 +399,6 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             }
         } catch (BadLocationException ignored) {}
         return totalLen;
-    }
-
-    /**
-     * 找到当前行上一行的行首字符偏移
-     *
-     * @param lineStart 当前行的行首字符偏移
-     * @return 上一行的行首字符偏移，若无则返回 0
-     */
-    private int findPreviousLineStart(int lineStart) {
-        if (lineStart <= 0) return 0;
-        try {
-            // 取当前行行首前一个字符，看它属于哪一行
-            Rectangle currentRect = textBodyPane.modelToView2D(lineStart).getBounds();
-            if (currentRect == null) return 0;
-            int currentY = currentRect.y;
-
-            // 找到第一个 Y 坐标小于 currentY 的字符
-            for (int i = lineStart - 1; i >= 0; i--) {
-                Rectangle r = textBodyPane.modelToView2D(i).getBounds();
-                if (r == null || r.y >= currentY) continue;
-                // 找到上一行的某个字符，返回该行行首
-                return findLineStart(i);
-            }
-        } catch (BadLocationException ignored) {}
-        return 0;
-    }
-
-    /**
-     * 请求焦点到文本面板（用于方向键快捷键）
-     */
-    public void requestTextFocus() {
-        if (textBodyPane != null) {
-            textBodyPane.requestFocusInWindow();
-        }
     }
 
     // ==================== 样式操作方法 ====================
