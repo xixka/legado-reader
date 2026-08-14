@@ -72,6 +72,9 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
 
         this.add(textBodyContentPanel, BorderLayout.CENTER);
 
+        // 面板自身可聚焦（用于方向键快捷键），textBodyPane 不聚焦（避免光标）
+        setFocusable(true);
+
         // 默认显示内容
         showContent();
 

@@ -153,6 +153,9 @@ public class MainPanelEventHandler {
 
         // 设置加载提示
         textBodyPanel.setText("加载中...");
+
+        // 请求焦点，使方向键快捷键可用
+        textBodyPanel.requestFocusInWindow();
     }
 
     /**
@@ -174,6 +177,9 @@ public class MainPanelEventHandler {
 
         // 设置光标位置：始终回到章节顶部
         textBodyPanel.setCaretPosition(event.chapterPosition());
+
+        // 请求焦点到面板，使方向键快捷键立即生效
+        textBodyPanel.requestFocusInWindow();
     }
 
     /**
