@@ -175,12 +175,8 @@ public class MainPanelEventHandler {
         // 应用样式（在 setText 之后）
         textBodyPanel.applyStyleFromSettings();
 
-        // 设置光标位置：上一章定位到文档末尾，其他情况使用事件中的位置
-        if (event.direction() == ReadingEvent.Direction.PREVIOUS) {
-            textBodyPanel.setCaretPositionToEnd();
-        } else {
-            textBodyPanel.setCaretPosition(event.chapterPosition());
-        }
+        // 设置光标位置：始终回到章节顶部
+        textBodyPanel.setCaretPosition(event.chapterPosition());
 
         // 请求焦点到文本面板，使方向键快捷键生效
         textBodyPanel.requestTextFocus();
