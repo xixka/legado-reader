@@ -459,10 +459,6 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
                 hide ? ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER
                      : ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
         );
-        textScrollPane.setHorizontalScrollBarPolicy(
-                hide ? ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
-                     : ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
-        );
     }
 
     /**

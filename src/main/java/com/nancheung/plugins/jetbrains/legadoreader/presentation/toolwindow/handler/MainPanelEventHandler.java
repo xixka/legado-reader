@@ -194,7 +194,7 @@ public class MainPanelEventHandler {
         // - 0 表示章节顶部（直接回到顶部）
         // - >0 表示章节末尾（从翻页触发的上一章，定位到末尾）
         int caretPos = event.chapterPosition();
-        int docLength = textBodyPane.getText().length();
+        int docLength = textBodyPanel.getText().length();
         if (caretPos >= docLength) {
             // 光标在文档末尾或超出，滚动到文档末尾
             textBodyPanel.scrollToPosition(docLength - 1);
