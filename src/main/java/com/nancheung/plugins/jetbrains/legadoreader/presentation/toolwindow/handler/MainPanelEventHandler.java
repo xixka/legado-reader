@@ -175,6 +175,9 @@ public class MainPanelEventHandler {
         // 应用样式（在 setText 之后）
         textBodyPanel.applyStyleFromSettings();
 
+        // 在文档末尾插入空白行撑够一视口高度，避免翻页到底时顶部显示已读文本
+        textBodyPanel.padContentWithBlankLines();
+
         // 设置光标位置：始终回到章节顶部
         textBodyPanel.setCaretPosition(event.chapterPosition());
 

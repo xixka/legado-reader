@@ -280,45 +280,11 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
 
             if (newTop >= totalLen) return -1;
 
-            // 检查剩余内容是否能填满至少一个视口，不能则不滚动（返回 -1 触发下一章）
-            if (!isRemainingContentFullPage(newTop, viewHeight)) {
-                return -1;
-            }
-
             scrollToPosition(newTop);
             setCaretPosition(newTop);
             return newTop;
         } catch (BadLocationException e) {
             return -1;
-        }
-    }
-
-    /**
-     * 检查从指定位置到文档末尾的内容是否能填满至少一个视口高度
-     *
-     * @param position  起始字符位置
-     * @param viewHeight 视口高度（像素）
-     * @return true = 至少能填满一视口；false = 内容不足
-     */
-    private boolean isRemainingContentFullPage(int position, int viewHeight) {
-        try {
-            int totalLen = textBodyPane.getDocument().getLength();
-            if (totalLen <= 1) return false;
-
-            // 起始位置的 Y 坐标
-            Rectangle startRect = textBodyPane.modelToView2D(position).getBounds();
-            if (startRect == null) return false;
-            int startY = startRect.y;
-
-            // 文档末尾字符的 Y 坐标（字符底部）
-            Rectangle endRect = textBodyPane.modelToView2D(totalLen - 1).getBounds();
-            if (endRect == null) return false;
-            int endY = endRect.y + endRect.height;
-
-            // 剩余内容高度 >= 视口高度 → 足够填满一页
-            return (endY - startY) >= viewHeight;
-        } catch (BadLocationException e) {
-            return false;
         }
     }
 
@@ -436,6 +402,42 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             }
         } catch (BadLocationException ignored) {}
         return totalLen;
+    }
+
+    /**
+     * 在文档末尾插入空白行，撑够至少一个视口高度
+     * 效果：翻页到底部时，顶部显示空白行而非之前已读过的文本
+     */
+    public void padContentWithBlankLines() {
+        try {
+            JViewport viewport = textScrollPane.getViewport();
+            int viewHeight = viewport.getExtentSize().height;
+            if (viewHeight <= 0) return;
+
+            // 获取行高（取第一行的高度作为参考）
+            int totalLen = textBodyPane.getDocument().getLength();
+            if (totalLen <= 0) return;
+
+            Rectangle firstRect = textBodyPane.modelToView2D(0).getBounds();
+            if (firstRect == null) return;
+            int lineHeight = firstRect.height;
+            if (lineHeight <= 0) return;
+
+            // 计算需要多少行空白才能填满一个视口
+            int linesNeeded = (int) Math.ceil((double) viewHeight / lineHeight);
+            if (linesNeeded <= 0) return;
+
+            // 构建空白行文本
+            StringBuilder blankLines = new StringBuilder();
+            for (int i = 0; i < linesNeeded; i++) {
+                blankLines.append('\n');
+            }
+
+            // 追加到文档末尾
+            textBodyPane.getDocument().insertString(totalLen, blankLines.toString(), null);
+        } catch (BadLocationException e) {
+            log.warn("插入空白行失败", e);
+        }
     }
 
     // ==================== 样式操作方法 ====================
