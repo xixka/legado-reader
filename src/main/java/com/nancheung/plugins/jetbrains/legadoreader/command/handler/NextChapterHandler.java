@@ -76,34 +76,40 @@ public class NextChapterHandler implements CommandHandler<CommandPayload> {
 
         log.info("开始切换到下一章: {} -> {}", currentIndex, nextIndex);
 
-        // 6. 发布"章节加载开始"事件
-        publisher.publish(ReadingEvent.chapterLoading(
-                command.id(),
-                book,
-                tempChapter,
-                ReadingEvent.Direction.NEXT
-        ));
+        // 6. 优先尝试从缓存读取（缓存命中时跳过加载状态，避免"加载中..."闪烁）
+        String cachedContent = OfflineCacheService.getInstance().tryLoadChapterFromCache(book.getBookUrl(), nextIndex);
 
-        // 7. 异步加载数据
+        // 7. 仅在没有缓存时发布"章节加载开始"事件
+        if (cachedContent == null) {
+            publisher.publish(ReadingEvent.chapterLoading(
+                    command.id(),
+                    book,
+                    tempChapter,
+                    ReadingEvent.Direction.NEXT
+            ));
+        }
+
+        // 8. 异步加载数据
+        final String contentFromCache = cachedContent;
         CompletableFuture.runAsync(() -> {
             try {
-                // 7.1 获取章节列表和内容
+                // 8.1 获取章节列表和内容
                 List<BookChapterDTO> chapters = sessionManager.getChapters();
                 BookChapterDTO chapter = chapters.get(nextIndex);
-                // 优先从离线缓存读取，未命中再走 API
-                String content = OfflineCacheService.getInstance().tryLoadChapterFromCache(book.getBookUrl(), nextIndex);
+                // 使用缓存内容或从 API 获取
+                String content = contentFromCache;
                 if (content == null) {
                     content = ApiUtil.getBookContent(book.getBookUrl(), nextIndex);
                 }
 
-                // 7.2 更新会话
+                // 8.2 更新会话
                 sessionManager.nextChapter();
                 sessionManager.setContent(content);
 
-                // 7.3 状态转换：LOADING → READING
+                // 8.3 状态转换：LOADING → READING
                 stateMachine.transition(ReadingSessionState.READING);
 
-                // 7.4 发布"章节加载成功"事件
+                // 8.4 发布"章节加载成功"事件
                 publisher.publish(ReadingEvent.chapterLoaded(
                         command.id(),
                         book,
@@ -115,15 +121,15 @@ public class NextChapterHandler implements CommandHandler<CommandPayload> {
 
                 log.info("切换到下一章成功：{}", chapter.getTitle());
 
-                // 7.6 异步同步进度到服务器（不等待）
+                // 8.5 异步同步进度到服务器（不等待）
                 syncProgressAsync(book, nextIndex, chapter.getTitle(), 0);
 
             } catch (Exception e) {
-                // 7. 失败处理：回滚状态
+                // 失败处理：回滚状态
                 sessionManager.previousChapter();  // 回滚索引
                 stateMachine.transition(ReadingSessionState.READING);  // 回到阅读状态
 
-                // 7.1 发布"章节加载失败"事件
+                // 发布"章节加载失败"事件
                 publisher.publish(ReadingEvent.chapterLoadFailed(
                         command.id(),
                         book,
@@ -132,7 +138,7 @@ public class NextChapterHandler implements CommandHandler<CommandPayload> {
                         ReadingEvent.Direction.NEXT
                 ));
 
-                // 7.2 记录错误日志（如果启用）
+                // 记录错误日志（如果启用）
                 if (Boolean.TRUE.equals(PluginSettingsStorage.getInstance().getState().enableErrorLog)) {
                     log.error("切换到下一章失败", e);
                 }

@@ -73,21 +73,27 @@ public class PreviousChapterHandler implements CommandHandler<CommandPayload> {
 
         log.info("开始切换到上一章: {} -> {}", currentIndex, prevIndex);
 
-        // 5. 发布加载开始事件
-        publisher.publish(ReadingEvent.chapterLoading(
-                command.id(),
-                book,
-                tempChapter,
-                ReadingEvent.Direction.PREVIOUS
-        ));
+        // 5. 优先尝试从缓存读取（缓存命中时跳过加载状态，避免"加载中..."闪烁）
+        String cachedContent = OfflineCacheService.getInstance().tryLoadChapterFromCache(book.getBookUrl(), prevIndex);
 
-        // 6. 异步加载数据
+        // 6. 仅在没有缓存时发布加载开始事件
+        if (cachedContent == null) {
+            publisher.publish(ReadingEvent.chapterLoading(
+                    command.id(),
+                    book,
+                    tempChapter,
+                    ReadingEvent.Direction.PREVIOUS
+            ));
+        }
+
+        // 7. 异步加载数据
+        final String contentFromCache = cachedContent;
         CompletableFuture.runAsync(() -> {
             try {
                 List<BookChapterDTO> chapters = sessionManager.getChapters();
                 BookChapterDTO chapter = chapters.get(prevIndex);
-                // 优先从离线缓存读取，未命中再走 API
-                String content = OfflineCacheService.getInstance().tryLoadChapterFromCache(book.getBookUrl(), prevIndex);
+                // 使用缓存内容或从 API 获取
+                String content = contentFromCache;
                 if (content == null) {
                     content = ApiUtil.getBookContent(book.getBookUrl(), prevIndex);
                 }
