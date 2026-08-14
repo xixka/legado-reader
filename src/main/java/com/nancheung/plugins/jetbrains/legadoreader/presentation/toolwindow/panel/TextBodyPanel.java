@@ -84,7 +84,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
 
     /**
      * 注册方向键全局监听器，仅在焦点位于本面板内时响应
-     * ← 上一页  |  → 下一页  |  ↑ 上一章  |  ↓ 下一章
+     * ↑ 上一页  |  ↓ 下一页  |  ← 上一章  |  → 下一章
      */
     private void registerArrowKeyDispatcher() {
         KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(e -> {
@@ -93,16 +93,16 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             if (!isFocusInsidePanel()) return false;
 
             switch (e.getKeyCode()) {
-                case KeyEvent.VK_LEFT:
+                case KeyEvent.VK_UP:
                     doPageUp();
                     return true;
-                case KeyEvent.VK_RIGHT:
+                case KeyEvent.VK_DOWN:
                     doPageDown();
                     return true;
-                case KeyEvent.VK_UP:
+                case KeyEvent.VK_LEFT:
                     CommandBus.getInstance().dispatchAsync(Command.of(CommandType.PREVIOUS_CHAPTER));
                     return true;
-                case KeyEvent.VK_DOWN:
+                case KeyEvent.VK_RIGHT:
                     CommandBus.getInstance().dispatchAsync(Command.of(CommandType.NEXT_CHAPTER));
                     return true;
                 default:
