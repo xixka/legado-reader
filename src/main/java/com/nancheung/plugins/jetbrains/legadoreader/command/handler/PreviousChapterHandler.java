@@ -6,6 +6,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.api.dto.BookDTO;
 import com.nancheung.plugins.jetbrains.legadoreader.command.Command;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.CommandPayload;
+import com.nancheung.plugins.jetbrains.legadoreader.command.payload.NavigateChapterPayload;
 import com.nancheung.plugins.jetbrains.legadoreader.event.EventPublisher;
 import com.nancheung.plugins.jetbrains.legadoreader.event.ReadingEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.manager.ReadingSessionManager;
@@ -73,10 +74,13 @@ public class PreviousChapterHandler implements CommandHandler<CommandPayload> {
 
         log.info("开始切换到上一章: {} -> {}", currentIndex, prevIndex);
 
-        // 5. 优先尝试从缓存读取（缓存命中时跳过加载状态，避免"加载中..."闪烁）
+        // 5. 判断是否需要定位到章节末尾（从翻页触发的上一章）
+        boolean positionAtEnd = command.payload() instanceof NavigateChapterPayload p && p.positionAtEnd();
+
+        // 6. 优先尝试从缓存读取（缓存命中时跳过加载状态，避免"加载中..."闪烁）
         String cachedContent = OfflineCacheService.getInstance().tryLoadChapterFromCache(book.getBookUrl(), prevIndex);
 
-        // 6. 仅在没有缓存时发布加载开始事件
+        // 7. 仅在没有缓存时发布加载开始事件
         if (cachedContent == null) {
             publisher.publish(ReadingEvent.chapterLoading(
                     command.id(),
@@ -86,7 +90,7 @@ public class PreviousChapterHandler implements CommandHandler<CommandPayload> {
             ));
         }
 
-        // 7. 异步加载数据
+        // 8. 异步加载数据
         final String contentFromCache = cachedContent;
         CompletableFuture.runAsync(() -> {
             try {
@@ -105,20 +109,23 @@ public class PreviousChapterHandler implements CommandHandler<CommandPayload> {
                 // 状态转换
                 stateMachine.transition(ReadingSessionState.READING);
 
+                // 光标位置：定位到末尾时使用文档长度，否则为 0
+                int cursorPosition = positionAtEnd ? content.length() : 0;
+
                 // 发布成功事件
                 publisher.publish(ReadingEvent.chapterLoaded(
                         command.id(),
                         book,
                         chapter,
                         content,
-                        0,
+                        cursorPosition,
                         ReadingEvent.Direction.PREVIOUS
                 ));
 
-                log.info("切换到上一章成功：{}", chapter.getTitle());
+                log.info("切换到上一章成功：{}，光标位置：{}", chapter.getTitle(), cursorPosition);
 
                 // 异步同步进度
-                syncProgressAsync(book, prevIndex, chapter.getTitle(), 0);
+                syncProgressAsync(book, prevIndex, chapter.getTitle(), cursorPosition);
 
             } catch (Exception e) {
                 // 回滚状态

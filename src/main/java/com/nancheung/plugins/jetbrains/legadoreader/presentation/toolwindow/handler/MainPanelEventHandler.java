@@ -190,8 +190,17 @@ public class MainPanelEventHandler {
         PluginSettingsStorage.State settingsState = PluginSettingsStorage.getInstance().getState();
         textBodyPanel.setScrollBarVisible(Boolean.TRUE.equals(settingsState.hideScrollBar));
 
-        // 设置光标位置：始终回到章节顶部
-        textBodyPanel.setCaretPosition(event.chapterPosition());
+        // 设置光标位置：根据事件中的 chapterPosition 定位
+        // - 0 表示章节顶部（直接回到顶部）
+        // - >0 表示章节末尾（从翻页触发的上一章，定位到末尾）
+        int caretPos = event.chapterPosition();
+        int docLength = textBodyPane.getText().length();
+        if (caretPos >= docLength) {
+            // 光标在文档末尾或超出，滚动到文档末尾
+            textBodyPanel.scrollToPosition(docLength - 1);
+        } else {
+            textBodyPanel.setCaretPosition(caretPos);
+        }
 
         // 请求焦点到面板，使方向键快捷键立即生效
         textBodyPanel.requestFocusInWindow();

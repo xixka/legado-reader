@@ -229,12 +229,23 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
      */
     public void scrollToPosition(int position) {
         JViewport viewport = textScrollPane.getViewport();
-        if (position == 0) {
+        if (position <= 0) {
             // 滚动到文档最顶部，直接设为 (0, 0)，避免 margin 影响
             viewport.setViewPosition(new Point(0, 0));
             return;
         }
         try {
+            int totalLen = textBodyPane.getDocument().getLength();
+            // 滚动到文档末尾：将视口底部对齐到文档末尾
+            if (position >= totalLen - 1) {
+                Rectangle endRect = textBodyPane.modelToView2D(totalLen - 1).getBounds();
+                if (endRect != null) {
+                    int viewHeight = viewport.getExtentSize().height;
+                    int y = Math.max(0, endRect.y + endRect.height - viewHeight);
+                    viewport.setViewPosition(new Point(0, y));
+                }
+                return;
+            }
             Rectangle viewRect = textBodyPane.modelToView2D(position).getBounds();
             if (viewRect == null) return;
             viewport.setViewPosition(new Point(0, viewRect.y));

@@ -10,5 +10,6 @@ public sealed interface CommandPayload permits
         SelectBookPayload,
         JumpToChapterPayload,
         RefreshBookshelfPayload,
-        CacheBookPayload {
+        CacheBookPayload,
+        NavigateChapterPayload {
 }

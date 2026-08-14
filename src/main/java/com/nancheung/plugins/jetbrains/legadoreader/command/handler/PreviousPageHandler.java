@@ -5,6 +5,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.command.Command;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandBus;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.CommandPayload;
+import com.nancheung.plugins.jetbrains.legadoreader.command.payload.NavigateChapterPayload;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.MainReaderPanel;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel.TextBodyPanel;
 import lombok.extern.slf4j.Slf4j;
@@ -47,9 +48,9 @@ public class PreviousPageHandler implements CommandHandler<CommandPayload> {
                 }
             }
 
-            // 已经到顶部，触发上一章
-            log.debug("已到当前章节顶部，切换到上一章");
-            CommandBus.getInstance().dispatch(Command.of(CommandType.PREVIOUS_CHAPTER));
+            // 已经到顶部，触发上一章，定位到末尾（从翻页触发的上一章应从末尾开始）
+            log.debug("已到当前章节顶部，切换到上一章（定位到末尾）");
+            CommandBus.getInstance().dispatch(Command.of(CommandType.PREVIOUS_CHAPTER, new NavigateChapterPayload(true)));
         });
     }
 }
