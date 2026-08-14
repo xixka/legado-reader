@@ -308,8 +308,9 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         int viewTop = viewport.getViewPosition().y;
         int viewBottom = viewTop + viewHeight;
 
-        log.info("pageDown: viewSize={}, extentSize={}, viewPosition.y={}, viewBottom={}",
-                viewport.getViewSize(), viewport.getExtentSize(), viewTop, viewBottom);
+        System.out.println("[DBG-pageDown] viewSize=" + viewport.getViewSize()
+                + " extentSize=" + viewport.getExtentSize()
+                + " viewPosition.y=" + viewTop + " viewBottom=" + viewBottom);
 
         try {
             int totalLen = textBodyPane.getDocument().getLength();
@@ -332,7 +333,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
 
             // newTop 已超出文档末尾 → 到底
             if (newTop >= totalLen) {
-                log.info("pageDown: newTop={} >= totalLen={}, 返回 -1", newTop, totalLen);
+                System.out.println("[DBG-pageDown] newTop=" + newTop + " >= totalLen=" + totalLen + ", return -1");
                 return -1;
             }
 
@@ -340,19 +341,20 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             // 如果可见（剩余内容不足一页），不滚动，返回 -1 触发下一章
             Rectangle newTopRect = textBodyPane.modelToView2D(newTop).getBounds();
             if (newTopRect == null || newTopRect.y < viewBottom) {
-                log.info("pageDown: newTopRect.y={} < viewBottom={}, 返回 -1",
-                        newTopRect == null ? "null" : newTopRect.y, viewBottom);
+                System.out.println("[DBG-pageDown] newTopRect.y=" + (newTopRect == null ? "null" : newTopRect.y)
+                        + " < viewBottom=" + viewBottom + ", return -1");
                 return -1;
             }
 
-            log.info("pageDown: 准备滚动到 newTop={}, newTopRect.y={}", newTop, newTopRect.y);
+            System.out.println("[DBG-pageDown] scrolling to newTop=" + newTop + " newTopRect.y=" + newTopRect.y);
             scrollToPosition(newTop);
-            int newViewTop = viewport.getViewPosition().y;
-            log.info("pageDown: scrollToPosition 后 viewPosition.y={} (期望={})", newViewTop, newTopRect.y);
+            int actualPos = viewport.getViewPosition().y;
+            System.out.println("[DBG-pageDown] after scrollToPosition, viewPosition.y=" + actualPos
+                    + " (expected=" + newTopRect.y + ")");
             setCaretPosition(newTop);
             return newTop;
         } catch (BadLocationException e) {
-            log.warn("pageDown: BadLocationException", e);
+            System.out.println("[DBG-pageDown] BadLocationException: " + e.getMessage());
             return -1;
         }
     }
