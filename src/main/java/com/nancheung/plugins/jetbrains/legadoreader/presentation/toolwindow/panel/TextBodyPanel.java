@@ -239,6 +239,8 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
      */
     public void scrollToPosition(int position) {
         JViewport viewport = textScrollPane.getViewport();
+        // 确保 viewSize 反映文本实际渲染高度，避免 setViewPosition 被 clamp 到 0
+        ensureViewSizeAccurate(viewport);
         if (position <= 0) {
             // 滚动到文档最顶部，直接设为 (0, 0)，避免 margin 影响
             viewport.setViewPosition(new Point(0, 0));
@@ -259,6 +261,31 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             Rectangle viewRect = textBodyPane.modelToView2D(position).getBounds();
             if (viewRect == null) return;
             viewport.setViewPosition(new Point(0, viewRect.y));
+        } catch (BadLocationException e) {
+            // 忽略无效位置
+        }
+    }
+
+    /**
+     * 确保 viewport 的 viewSize 反映文本实际渲染高度
+     * <p>
+     * JTextPane 的 getPreferredSize()（由 TextUI 基于 View 首选宽度计算）
+     * 可能与按视口宽度换行后的实际布局高度不一致——preferredSize 偏小时，
+     * ScrollPaneLayout 设置的 viewSize.height ≤ extentSize.height，
+     * 导致 setViewPosition 被 clamp 到 0，视口纹丝不动、翻页失效。
+     * 此方法用 modelToView2D 计算文本实际底部，修正 viewSize。
+     */
+    private void ensureViewSizeAccurate(JViewport viewport) {
+        int totalLen = textBodyPane.getDocument().getLength();
+        if (totalLen <= 0) return;
+        try {
+            Rectangle lastRect = textBodyPane.modelToView2D(totalLen - 1).getBounds();
+            if (lastRect == null) return;
+            int docBottom = lastRect.y + lastRect.height;
+            Dimension viewSize = viewport.getViewSize();
+            if (viewSize.height < docBottom) {
+                viewport.setViewSize(new Dimension(viewSize.width, docBottom));
+            }
         } catch (BadLocationException e) {
             // 忽略无效位置
         }
@@ -469,11 +496,6 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
                 hide ? ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER
                      : ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
         );
-        // 滚动条策略变更会导致视口宽度变化（隐藏时变宽、显示时变窄），
-        // 文本会随之重新换行，必须立即重排，否则后续 modelToView2D / viewToModel2D
-        // 会基于过时布局返回错误坐标，造成翻页计算异常。
-        textScrollPane.revalidate();
-        textScrollPane.repaint();
     }
 
     /**
