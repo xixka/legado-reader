@@ -50,6 +50,7 @@ public class SettingsPanel {
     private JBCheckBox enableErrorLogCheckBox;
     private JBCheckBox enableInLineModelCheckBox;
     private JBCheckBox enableOfflineCacheCheckBox;
+    private JBCheckBox hideScrollBarCheckBox;
 
     // ==================== 阅读界面设置组件 ====================
     private ColorPanel fontColorButton;
@@ -91,6 +92,7 @@ public class SettingsPanel {
         enableErrorLogCheckBox.setSelected(viewModel.isEnableErrorLog());
         enableInLineModelCheckBox.setSelected(viewModel.isEnableInLineMode());
         enableOfflineCacheCheckBox.setSelected(viewModel.isCacheEnabled());
+        hideScrollBarCheckBox.setSelected(viewModel.isHideScrollBar());
         // 更新预览
         updateFontPreview();
     }
@@ -111,6 +113,8 @@ public class SettingsPanel {
 
         enableOfflineCacheCheckBox = new JBCheckBox("开启离线缓存（AES-256 加密落盘）");
         enableOfflineCacheCheckBox.setToolTipText("缓存书籍章节内容到本地磁盘，支持断点续传、离线阅读");
+
+        hideScrollBarCheckBox = new JBCheckBox("隐藏滚动条");
     }
 
     private void createReadingInterfaceComponents() {
@@ -245,6 +249,7 @@ public class SettingsPanel {
                 .addComponent(enableInLineModelCheckBox, JBUI.scale(5))
                 .addComponent(enableOfflineCacheCheckBox, JBUI.scale(5))
                 .addComponent(cacheHintLabel, JBUI.scale(2))
+                .addComponent(hideScrollBarCheckBox, JBUI.scale(5))
                 .getPanel();
 
         panel.setBorder(IdeBorderFactory.createTitledBorder("常规设置"));
@@ -304,6 +309,10 @@ public class SettingsPanel {
 
         enableOfflineCacheCheckBox.addActionListener(e ->
                 viewModel.setCacheEnabled(enableOfflineCacheCheckBox.isSelected())
+        );
+
+        hideScrollBarCheckBox.addActionListener(e ->
+                viewModel.setHideScrollBar(hideScrollBarCheckBox.isSelected())
         );
 
         // 颜色选择

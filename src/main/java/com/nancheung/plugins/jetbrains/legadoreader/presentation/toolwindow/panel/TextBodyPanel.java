@@ -14,6 +14,7 @@ import javax.swing.*;
 import javax.swing.text.BadLocationException;
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import javax.swing.ScrollPaneConstants;
 
 /**
  * 正文面板组件
@@ -308,8 +309,11 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         int pos = findPositionAtY(targetY);
 
         if (pos <= 0) {
-            // 已到文档顶部，无法继续上翻，返回 -1 通知 handler 触发上一章
-            return -1;
+            // 已到文档顶部，滚动到文档开头
+            // 返回 0 表示成功（不触发上一章），上一章由 canPageUp() 为 false 时触发
+            scrollToPosition(0);
+            setCaretPosition(0);
+            return 0;
         }
 
         // 对齐到该行行首
@@ -425,6 +429,22 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
     }
 
     // ==================== 查询方法 ====================
+
+    /**
+     * 设置滚动条显隐
+     *
+     * @param hide true 隐藏滚动条，false 显示滚动条
+     */
+    public void setScrollBarVisible(boolean hide) {
+        textScrollPane.setVerticalScrollBarPolicy(
+                hide ? ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER
+                     : ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
+        );
+        textScrollPane.setHorizontalScrollBarPolicy(
+                hide ? ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+                     : ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
+        );
+    }
 
     /**
      * 获取当前是否处于可见（正文）状态

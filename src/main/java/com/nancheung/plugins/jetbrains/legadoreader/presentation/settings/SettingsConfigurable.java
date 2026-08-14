@@ -108,5 +108,9 @@ public class SettingsConfigurable implements SearchableConfigurable {
                 state.textBodyLineHeight
             )
         );
+
+        EventPublisher.getInstance().publish(
+            SettingsChangedEvent.hideScrollBarSettings(state.hideScrollBar)
+        );
     }
 }

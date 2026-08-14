@@ -86,12 +86,23 @@ public class MainPanelEventHandler {
 
     /**
      * 处理设置变更事件
-     * 当用户在设置页面保存字体设置后，立即刷新 UI
+     * 当用户在设置页面保存设置后，立即刷新 UI
      */
     public void handleSettingsChangedEvent(SettingsChangedEvent event) {
-        // 只处理字体设置变更
+        // 只处理字体设置或全部设置变更
         if (event.type() != SettingsChangedEvent.SettingsChangedType.FONT_SETTINGS
                 && event.type() != SettingsChangedEvent.SettingsChangedType.ALL_SETTINGS) {
+            return;
+        }
+
+        // 处理滚动条显隐
+        if (event.hideScrollBar() != null) {
+            textBodyPanel.setScrollBarVisible(event.hideScrollBar());
+            log.debug("滚动条显隐已更新：hide={}", event.hideScrollBar());
+        }
+
+        // 字体相关设置变更时更新字体样式
+        if (event.fontColor() == null && event.font() == null && event.lineHeight() == null) {
             return;
         }
 
@@ -174,6 +185,10 @@ public class MainPanelEventHandler {
 
         // 应用样式（在 setText 之后）
         textBodyPanel.applyStyleFromSettings();
+
+        // 应用滚动条显隐设置
+        PluginSettingsStorage.State settingsState = PluginSettingsStorage.getInstance().getState();
+        textBodyPanel.setScrollBarVisible(Boolean.TRUE.equals(settingsState.hideScrollBar));
 
         // 设置光标位置：始终回到章节顶部
         textBodyPanel.setCaretPosition(event.chapterPosition());

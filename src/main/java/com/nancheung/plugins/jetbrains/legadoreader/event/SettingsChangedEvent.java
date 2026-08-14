@@ -18,6 +18,7 @@ import java.util.UUID;
  * @param font              字体（可能为 null）
  * @param lineHeight        行高（可能为 null）
  * @param enableShowBodyInLine 是否启用行内阅读（可能为 null）
+ * @param hideScrollBar     是否隐藏滚动条（可能为 null）
  * @author NanCheung
  */
 public record SettingsChangedEvent(
@@ -28,7 +29,8 @@ public record SettingsChangedEvent(
         @Nullable JBColor fontColor,
         @Nullable Font font,
         @Nullable Double lineHeight,
-        @Nullable Boolean enableShowBodyInLine
+        @Nullable Boolean enableShowBodyInLine,
+        @Nullable Boolean hideScrollBar
 ) implements ReaderEvent {
 
     /**
@@ -63,6 +65,7 @@ public record SettingsChangedEvent(
                 fontColor,
                 font,
                 lineHeight,
+                null,
                 null
         );
     }
@@ -79,7 +82,8 @@ public record SettingsChangedEvent(
                 null,
                 null,
                 null,
-                enableShowBodyInLine
+                enableShowBodyInLine,
+                null
         );
     }
 
@@ -99,7 +103,25 @@ public record SettingsChangedEvent(
                 fontColor,
                 font,
                 lineHeight,
-                enableShowBodyInLine
+                enableShowBodyInLine,
+                null
+        );
+    }
+
+    /**
+     * 创建设置变更事件（包含滚动条显隐）
+     */
+    public static SettingsChangedEvent hideScrollBarSettings(boolean hideScrollBar) {
+        return new SettingsChangedEvent(
+                UUID.randomUUID().toString(),
+                System.currentTimeMillis(),
+                null,
+                SettingsChangedType.ALL_SETTINGS,
+                null,
+                null,
+                null,
+                null,
+                hideScrollBar
         );
     }
 }

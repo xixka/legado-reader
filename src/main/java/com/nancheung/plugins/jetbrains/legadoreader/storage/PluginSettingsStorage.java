@@ -105,6 +105,11 @@ public final class PluginSettingsStorage implements PersistentStateComponent<Plu
         public Boolean cacheEnabled = false;
 
         /**
+         * 是否隐藏滚动条
+         */
+        public Boolean hideScrollBar = false;
+
+        /**
          * 离线缓存 AES 密钥（Base64 编码，AES-256 需要 32 字节）
          * 首次启用缓存时自动生成，对用户透明
          */
@@ -122,6 +127,7 @@ public final class PluginSettingsStorage implements PersistentStateComponent<Plu
                     Objects.equals(enableErrorLog, state.enableErrorLog) &&
                     Objects.equals(enableShowBodyInLine, state.enableShowBodyInLine) &&
                     Objects.equals(cacheEnabled, state.cacheEnabled) &&
+                    Objects.equals(hideScrollBar, state.hideScrollBar) &&
                     Objects.equals(cacheKey, state.cacheKey);
         }
 
@@ -129,7 +135,7 @@ public final class PluginSettingsStorage implements PersistentStateComponent<Plu
         public int hashCode() {
             return Objects.hash(textBodyFontColor, textBodyFont, textBodyLineHeight,
                     apiCustomParams, enableErrorLog, enableShowBodyInLine,
-                    cacheEnabled, cacheKey);
+                    cacheEnabled, hideScrollBar, cacheKey);
         }
     }
 

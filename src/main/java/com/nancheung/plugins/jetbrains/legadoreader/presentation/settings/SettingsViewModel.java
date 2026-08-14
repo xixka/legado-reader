@@ -34,6 +34,7 @@ public final class SettingsViewModel {
     private boolean enableErrorLog;
     private boolean enableInLineMode;
     private boolean cacheEnabled;
+    private boolean hideScrollBar;
     private final List<CustomParamEntry> customParams = new ArrayList<>();
 
     // 验证器
@@ -58,6 +59,7 @@ public final class SettingsViewModel {
         this.enableErrorLog = Boolean.TRUE.equals(state.enableErrorLog);
         this.enableInLineMode = Boolean.TRUE.equals(state.enableShowBodyInLine);
         this.cacheEnabled = Boolean.TRUE.equals(state.cacheEnabled);
+        this.hideScrollBar = Boolean.TRUE.equals(state.hideScrollBar);
 
         // 深拷贝参数列表
         this.customParams.clear();
@@ -81,6 +83,7 @@ public final class SettingsViewModel {
         state.enableErrorLog = enableErrorLog;
         state.enableShowBodyInLine = enableInLineMode;
         state.cacheEnabled = cacheEnabled;
+        state.hideScrollBar = hideScrollBar;
 
         state.apiCustomParams = customParams.stream()
                 .map(e -> new PluginSettingsStorage.CustomParam(e.name(), e.value()))
@@ -110,6 +113,7 @@ public final class SettingsViewModel {
                 || enableErrorLog != Boolean.TRUE.equals(state.enableErrorLog)
                 || enableInLineMode != Boolean.TRUE.equals(state.enableShowBodyInLine)
                 || cacheEnabled != Boolean.TRUE.equals(state.cacheEnabled)
+                || hideScrollBar != Boolean.TRUE.equals(state.hideScrollBar)
                 || !customParamsEquals(state.apiCustomParams);
     }
 
