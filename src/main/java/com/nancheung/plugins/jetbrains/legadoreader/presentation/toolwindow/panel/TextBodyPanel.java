@@ -414,18 +414,21 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             int viewHeight = viewport.getExtentSize().height;
             if (viewHeight <= 0) return;
 
-            // 获取行高（取第一行的高度作为参考）
             int totalLen = textBodyPane.getDocument().getLength();
             if (totalLen <= 0) return;
 
-            Rectangle firstRect = textBodyPane.modelToView2D(0).getBounds();
-            if (firstRect == null) return;
-            int lineHeight = firstRect.height;
+            // 取内容中间某行的行高作为参考（避免标题行高度不一致）
+            int samplePos = totalLen / 2;
+            Rectangle sampleRect = textBodyPane.modelToView2D(samplePos).getBounds();
+            if (sampleRect == null) return;
+            int lineHeight = sampleRect.height;
             if (lineHeight <= 0) return;
 
-            // 计算需要多少行空白才能填满一个视口
-            int linesNeeded = (int) Math.ceil((double) viewHeight / lineHeight);
+            // 插入约 80% 视口高度的空白行（够用即可，不必填满整个视口）
+            int linesNeeded = (int) Math.ceil(viewHeight / lineHeight * 0.8);
             if (linesNeeded <= 0) return;
+            // 最少插入 2 行
+            linesNeeded = Math.max(linesNeeded, 2);
 
             // 构建空白行文本
             StringBuilder blankLines = new StringBuilder();
