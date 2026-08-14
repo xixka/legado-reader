@@ -14,8 +14,6 @@ import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSessionState;
 import com.nancheung.plugins.jetbrains.legadoreader.service.OfflineCacheService;
 import com.nancheung.plugins.jetbrains.legadoreader.service.ReadingSessionStateMachine;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
-import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheMeta;
-import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheProgress;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -76,8 +74,7 @@ public class SelectBookHandler implements CommandHandler<SelectBookPayload> {
                 // 获取章节列表：优先从离线缓存读取（断网时也能打开已缓存的书），未命中再走 API
                 OfflineCacheService cacheService = OfflineCacheService.getInstance();
                 List<BookChapterDTO> chapters = cacheService.tryLoadChaptersFromCache(book.getBookUrl());
-                boolean fromCache = chapters != null;
-                if (!fromCache) {
+                if (chapters == null) {
                     chapters = ApiUtil.getChapterList(book.getBookUrl());
                 }
 
@@ -112,12 +109,10 @@ public class SelectBookHandler implements CommandHandler<SelectBookPayload> {
                         ReadingEvent.Direction.JUMP
                 ));
 
-                log.info("章节加载成功: {} (来源: {})", chapter.getTitle(), fromCache ? "本地缓存" : "服务器");
+                log.info("章节加载成功: {} (来源: {})", chapter.getTitle(), cacheService.tryLoadChaptersFromCache(book.getBookUrl()) != null ? "本地缓存" : "服务器");
 
-                // 异步同步进度（离线模式下静默失败）
-                if (!fromCache) {
-                    syncProgressAsync(book, chapterIndex, chapter.getTitle(), position);
-                }
+                // 异步同步进度到服务器（失败静默忽略，不影响阅读体验）
+                syncProgressAsync(book, chapterIndex, chapter.getTitle(), position);
 
             } catch (Exception e) {
                 // 状态转换到错误

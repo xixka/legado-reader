@@ -14,6 +14,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.storage.AddressHistoryStorag
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import lombok.experimental.UtilityClass;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -74,7 +75,6 @@ public class ApiUtil {
      * 保存阅读进度
      */
     public void saveBookProgress(String author, String name, int index, String title, int durChapterPos) {
-        // 调用 API获取书架目录
         String url = AddressHistoryStorage.getInstance().getMostRecent() + AddressEnum.SAVE_BOOK_PROGRESS.getAddress();
 
         BookProgressDTO bookProgressDTO = BookProgressDTO.builder()
@@ -88,8 +88,37 @@ public class ApiUtil {
                 .index(index)
                 .build();
 
-        post(url, bookProgressDTO, new TypeReference<>() {
-        });
+        // 使用表单方式发送，确保自定义参数（如 accessToken）和进度数据一起提交
+        saveProgressAsForm(url, bookProgressDTO);
+    }
+
+    /**
+     * 以表单方式保存阅读进度，将自定义参数和进度数据合并为一个表单请求
+     * 解决 Hutool 中 .body() 覆盖 .form() 导致自定义参数丢失的问题
+     */
+    private void saveProgressAsForm(String url, BookProgressDTO progressDTO) {
+        Map<String, Object> formParams = new LinkedHashMap<>(parseCustomParams());
+        // 将进度数据添加到表单参数中
+        formParams.put("name", progressDTO.getName());
+        formParams.put("author", progressDTO.getAuthor());
+        formParams.put("durChapterIndex", String.valueOf(progressDTO.getDurChapterIndex()));
+        formParams.put("durChapterTitle", progressDTO.getDurChapterTitle());
+        formParams.put("durChapterTime", String.valueOf(progressDTO.getDurChapterTime()));
+        formParams.put("durChapterPos", String.valueOf(progressDTO.getDurChapterPos()));
+        if (progressDTO.getUrl() != null) {
+            formParams.put("url", progressDTO.getUrl());
+        }
+        if (progressDTO.getIndex() != null) {
+            formParams.put("index", String.valueOf(progressDTO.getIndex()));
+        }
+
+        try {
+            HttpUtil.createPost(url)
+                    .form(formParams)
+                    .execute();
+        } catch (Exception e) {
+            throw new RuntimeException(String.format("\n%s：%s\n参数：\n%s\n", "保存阅读进度失败", url, formParams), e);
+        }
     }
 
 

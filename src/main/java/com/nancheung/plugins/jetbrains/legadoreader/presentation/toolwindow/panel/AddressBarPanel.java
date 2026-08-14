@@ -89,8 +89,8 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
         addButton.setName("addButton");
         addButton.setToolTipText("添加新的阅读服务器地址（不带端口自动补 1122）");
 
-        // 刷新按钮
-        refreshButton = new JButton("刷新");
+        // 透明按钮
+        refreshButton = new JButton("透明");
         refreshButton.setName("refreshButton");
 
         add(addressHistoryBox);
