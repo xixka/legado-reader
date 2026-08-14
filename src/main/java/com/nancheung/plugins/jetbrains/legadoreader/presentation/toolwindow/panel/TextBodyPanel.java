@@ -228,10 +228,15 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
      * @param position 目标字符偏移
      */
     public void scrollToPosition(int position) {
+        JViewport viewport = textScrollPane.getViewport();
+        if (position == 0) {
+            // 滚动到文档最顶部，直接设为 (0, 0)，避免 margin 影响
+            viewport.setViewPosition(new Point(0, 0));
+            return;
+        }
         try {
             Rectangle viewRect = textBodyPane.modelToView2D(position).getBounds();
             if (viewRect == null) return;
-            JViewport viewport = textScrollPane.getViewport();
             viewport.setViewPosition(new Point(0, viewRect.y));
         } catch (BadLocationException e) {
             // 忽略无效位置
@@ -359,7 +364,10 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
      */
     private int findPositionAtY(float y) {
         int pos = textBodyPane.viewToModel2D(new Point(0, (int) y));
-        return pos >= 0 ? pos : textBodyPane.getDocument().getLength() - 1;
+        if (pos >= 0) return pos;
+        // viewToModel2D 返回 -1 时，y 在文档范围之外
+        // y <= 0 说明在文档上方，返回 0（首字符）
+        return y <= 0 ? 0 : textBodyPane.getDocument().getLength() - 1;
     }
 
     /**
