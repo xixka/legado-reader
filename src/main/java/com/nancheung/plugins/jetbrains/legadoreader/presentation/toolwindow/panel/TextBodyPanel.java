@@ -1,5 +1,7 @@
 package com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.panel;
 
+import com.intellij.openapi.ui.TypingTarget;
+import com.intellij.openapi.util.ActionCallback;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
@@ -59,17 +61,10 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         textBodyContentPanel.setOpaque(false);
 
         // 1.1 内容卡片：正文
-        // 重写 getScrollableTracksViewportHeight() 始终返回 false：
-        // JTextPane 默认在「首选高度 ≤ 视口高度」时会让 JScrollPane 把视图拉伸到视口高度，
-        // 导致 setViewPosition 被锁死在 (0,0)、章内翻页失效。
-        // 隐藏滚动条后视口变宽 → 文本重新换行 → 首选高度减小，极易触发此条件。
-        // 固定返回 false 可确保视图始终保持自然高度，setViewPosition 永远可用。
-        textBodyPane = new JTextPane() {
-            @Override
-            public boolean getScrollableTracksViewportHeight() {
-                return false;
-            }
-        };
+        // 使用 ReaderTextPane：实现 TypingTarget 接口，绕过 JBViewport.doLayout
+        // 在 VERTICAL_SCROLLBAR_NEVER 模式下强制 viewPosition.y=0 的重置（翻页失效根因）。
+        // 同时重写 getScrollableTracksViewportHeight() 返回 false，避免视图被拉伸适配视口。
+        textBodyPane = new ReaderTextPane();
         textBodyPane.setEditable(false);
         textBodyPane.setFocusable(false); // 不可聚焦 → 不显示光标
 
@@ -489,17 +484,19 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
     /**
      * 设置滚动条显隐
      * <p>
-     * 注意：不能使用 {@code VERTICAL_SCROLLBAR_NEVER} 策略！
-     * IntelliJ 的 {@link com.intellij.ui.components.JBViewport} 在 {@code doLayout} 中检测到
-     * {@code NEVER} 策略时会强制 {@code viewPosition.y=0} 和 {@code viewSize.height=extentSize.height}，
-     * 导致 {@code setViewPosition} 设置的滚动位置被立即重置，翻页失效。
-     * 改为保留 {@code AS_NEEDED} 策略，通过 {@code setVisible(false)} 隐藏滚动条视觉。
+     * 使用 {@code VERTICAL_SCROLLBAR_NEVER} 策略真正隐藏滚动条。
+     * {@link com.intellij.ui.components.JBViewport} 的 {@code doLayout} 在 NEVER 模式下
+     * 会强制 {@code viewPosition.y=0}，但 {@link ReaderTextPane} 实现了 {@link TypingTarget}
+     * 接口，{@code doLayout} 中的 {@code view instanceof TypingTarget} 检查为 true，
+     * 跳过强制重置，{@code setViewPosition} 正常工作。
      *
      * @param hide true 隐藏滚动条，false 显示滚动条
      */
     public void setScrollBarVisible(boolean hide) {
-        textScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-        textScrollPane.getVerticalScrollBar().setVisible(!hide);
+        textScrollPane.setVerticalScrollBarPolicy(
+                hide ? ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER
+                     : ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
+        );
     }
 
     /**
@@ -516,5 +513,26 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
      */
     public void setContentVisible(boolean visible) {
         this.contentVisible = visible;
+    }
+
+    /**
+     * 自定义 JTextPane，实现 {@link TypingTarget} 接口。
+     * <p>
+     * IntelliJ 的 {@link com.intellij.ui.components.JBViewport#doLayout} 在检测到
+     * {@code VERTICAL_SCROLLBAR_NEVER} 策略时会强制 {@code viewPosition.y=0}，
+     * 但会跳过实现了 {@code TypingTarget} 的组件（{@code view instanceof TypingTarget}）。
+     * 实现此接口后，隐藏滚动条时 {@code setViewPosition} 不再被重置，翻页正常工作。
+     * {@code type} 方法返回 {@code null}（本组件只读，不处理输入）。
+     */
+    private static class ReaderTextPane extends JTextPane implements TypingTarget {
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
+
+        @Override
+        public ActionCallback type(String text) {
+            return null;
+        }
     }
 }
