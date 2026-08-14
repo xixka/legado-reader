@@ -7,6 +7,7 @@ import com.intellij.ui.components.JBPanel;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.JBTable;
 import com.intellij.util.ui.JBUI;
+import com.intellij.openapi.ui.Messages;
 import com.nancheung.plugins.jetbrains.legadoreader.api.ApiUtil;
 import com.nancheung.plugins.jetbrains.legadoreader.api.dto.BookDTO;
 import com.nancheung.plugins.jetbrains.legadoreader.command.Command;
@@ -200,12 +201,10 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         cacheButton.setEnabled(false);
         cacheButton.addActionListener(e -> triggerCacheForSelectedBook());
 
-        cancelButton = new JButton("取消缓存");
-        cancelButton.setToolTipText("取消正在进行的缓存任务");
+        cancelButton = new JButton("删除缓存");
+        cancelButton.setToolTipText("删除本书已缓存到本地的数据");
         cancelButton.setEnabled(false);
-        cancelButton.addActionListener(e -> CommandBus.getInstance().dispatchAsync(
-                Command.of(CommandType.CANCEL_CACHE_BOOK)
-        ));
+        cancelButton.addActionListener(e -> confirmAndDeleteCache());
 
         bar.add(cacheButton);
         bar.add(cancelButton);
@@ -259,7 +258,7 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         boolean running = book != null
                 && OfflineCacheService.getInstance().isCacheRunning(book.getBookUrl());
 
-        // 离线模式隐藏缓存按钮，在线模式隐藏取消缓存按钮
+        // 离线模式隐藏缓存按钮，在线模式隐藏删除缓存按钮
         cacheButton.setVisible(!offlineMode);
         cancelButton.setVisible(offlineMode || running);
 
@@ -267,7 +266,12 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         if (!offlineMode) {
             cacheButton.setEnabled(cacheEnabled && book != null && !running);
         }
-        cancelButton.setEnabled(running);
+        // 离线模式：选中书籍且未在缓存中则可删除；在线模式：正在缓存中则可取消
+        if (offlineMode) {
+            cancelButton.setEnabled(book != null && !running);
+        } else {
+            cancelButton.setEnabled(running);
+        }
 
         if (!cacheEnabled) {
             cacheButton.setToolTipText("请在 设置 → Tools → Legado Reader 中开启离线缓存");
@@ -277,6 +281,32 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
             cacheButton.setToolTipText("正在缓存中...");
         } else {
             cacheButton.setToolTipText("将选中的书籍后台缓存到本地（AES-256 加密）");
+        }
+    }
+
+    /**
+     * 确认后删除当前选中书籍的本地缓存
+     */
+    private void confirmAndDeleteCache() {
+        BookDTO book = getSelectedBook();
+        if (book == null) return;
+
+        int result = Messages.showYesNoDialog(
+                "确定要删除《" + book.getName() + "》的本地缓存吗？\n删除后将无法离线阅读本书。",
+                "删除缓存",
+                Messages.getQuestionIcon()
+        );
+        if (result != Messages.YES) return;
+
+        // 执行删除
+        BookCacheStorage.getInstance().deleteBookCache(book.getBookUrl());
+        log.info("已删除书籍缓存：{}", book.getName());
+
+        // 刷新书架（离线模式下删除后该书应从列表消失）
+        if (offlineMode) {
+            loadOfflineBookshelf();
+        } else {
+            refreshCacheStatus();
         }
     }
 

@@ -280,11 +280,45 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
 
             if (newTop >= totalLen) return -1;
 
+            // 检查剩余内容是否能填满至少一个视口，不能则不滚动（返回 -1 触发下一章）
+            if (!isRemainingContentFullPage(newTop, viewHeight)) {
+                return -1;
+            }
+
             scrollToPosition(newTop);
             setCaretPosition(newTop);
             return newTop;
         } catch (BadLocationException e) {
             return -1;
+        }
+    }
+
+    /**
+     * 检查从指定位置到文档末尾的内容是否能填满至少一个视口高度
+     *
+     * @param position  起始字符位置
+     * @param viewHeight 视口高度（像素）
+     * @return true = 至少能填满一视口；false = 内容不足
+     */
+    private boolean isRemainingContentFullPage(int position, int viewHeight) {
+        try {
+            int totalLen = textBodyPane.getDocument().getLength();
+            if (totalLen <= 1) return false;
+
+            // 起始位置的 Y 坐标
+            Rectangle startRect = textBodyPane.modelToView2D(position).getBounds();
+            if (startRect == null) return false;
+            int startY = startRect.y;
+
+            // 文档末尾字符的 Y 坐标（字符底部）
+            Rectangle endRect = textBodyPane.modelToView2D(totalLen - 1).getBounds();
+            if (endRect == null) return false;
+            int endY = endRect.y + endRect.height;
+
+            // 剩余内容高度 >= 视口高度 → 足够填满一页
+            return (endY - startY) >= viewHeight;
+        } catch (BadLocationException e) {
+            return false;
         }
     }
 
