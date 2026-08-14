@@ -67,6 +67,7 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         textBodyPane = new ReaderTextPane();
         textBodyPane.setEditable(false);
         textBodyPane.setFocusable(false); // 不可聚焦 → 不显示光标
+        textBodyPane.setOpaque(false); // 透明背景，翻页重绘时不填充白色，避免闪烁遮挡 IDE 背景图
 
         textScrollPane = new JBScrollPane(textBodyPane);
         textScrollPane.setOpaque(false);
