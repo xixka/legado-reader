@@ -148,14 +148,11 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
      * 执行下一页：章内翻页，已到底部则触发下一章
      */
     private void doPageDown() {
-        log.info("doPageDown: 方向键触发翻页, canPageDown={}", canPageDown());
         if (canPageDown()) {
             int newPos = pageDown();
-            log.info("doPageDown: pageDown 返回 {}", newPos);
             if (newPos >= 0) return;
         }
         // 已到底部，触发下一章
-        log.info("doPageDown: 触发下一章");
         CommandBus.getInstance().dispatchAsync(Command.of(CommandType.NEXT_CHAPTER));
     }
 
@@ -308,10 +305,6 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
         int viewTop = viewport.getViewPosition().y;
         int viewBottom = viewTop + viewHeight;
 
-        System.out.println("[DBG-pageDown] viewSize=" + viewport.getViewSize()
-                + " extentSize=" + viewport.getExtentSize()
-                + " viewPosition.y=" + viewTop + " viewBottom=" + viewBottom);
-
         try {
             int totalLen = textBodyPane.getDocument().getLength();
             if (totalLen == 0) return -1;
@@ -332,29 +325,19 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             }
 
             // newTop 已超出文档末尾 → 到底
-            if (newTop >= totalLen) {
-                System.out.println("[DBG-pageDown] newTop=" + newTop + " >= totalLen=" + totalLen + ", return -1");
-                return -1;
-            }
+            if (newTop >= totalLen) return -1;
 
             // 关键：newTop 所在行必须在当前视口中完全不可见
             // 如果可见（剩余内容不足一页），不滚动，返回 -1 触发下一章
             Rectangle newTopRect = textBodyPane.modelToView2D(newTop).getBounds();
             if (newTopRect == null || newTopRect.y < viewBottom) {
-                System.out.println("[DBG-pageDown] newTopRect.y=" + (newTopRect == null ? "null" : newTopRect.y)
-                        + " < viewBottom=" + viewBottom + ", return -1");
                 return -1;
             }
 
-            System.out.println("[DBG-pageDown] scrolling to newTop=" + newTop + " newTopRect.y=" + newTopRect.y);
             scrollToPosition(newTop);
-            int actualPos = viewport.getViewPosition().y;
-            System.out.println("[DBG-pageDown] after scrollToPosition, viewPosition.y=" + actualPos
-                    + " (expected=" + newTopRect.y + ")");
             setCaretPosition(newTop);
             return newTop;
         } catch (BadLocationException e) {
-            System.out.println("[DBG-pageDown] BadLocationException: " + e.getMessage());
             return -1;
         }
     }
@@ -505,14 +488,18 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
 
     /**
      * 设置滚动条显隐
+     * <p>
+     * 注意：不能使用 {@code VERTICAL_SCROLLBAR_NEVER} 策略！
+     * IntelliJ 的 {@link com.intellij.ui.components.JBViewport} 在 {@code doLayout} 中检测到
+     * {@code NEVER} 策略时会强制 {@code viewPosition.y=0} 和 {@code viewSize.height=extentSize.height}，
+     * 导致 {@code setViewPosition} 设置的滚动位置被立即重置，翻页失效。
+     * 改为保留 {@code AS_NEEDED} 策略，通过 {@code setVisible(false)} 隐藏滚动条视觉。
      *
      * @param hide true 隐藏滚动条，false 显示滚动条
      */
     public void setScrollBarVisible(boolean hide) {
-        textScrollPane.setVerticalScrollBarPolicy(
-                hide ? ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER
-                     : ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
-        );
+        textScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        textScrollPane.getVerticalScrollBar().setVisible(!hide);
     }
 
     /**

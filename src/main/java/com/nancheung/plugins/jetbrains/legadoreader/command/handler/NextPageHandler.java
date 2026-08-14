@@ -29,32 +29,26 @@ public class NextPageHandler implements CommandHandler<CommandPayload> {
         ApplicationManager.getApplication().invokeLater(() -> {
             MainReaderPanel mainPanel = MainReaderPanel.getInstance();
             if (mainPanel == null) {
-                System.out.println("[DBG-PageDown] mainPanel is null, abort");
+                log.warn("MainReaderPanel 未初始化");
                 return;
             }
 
             TextBodyPanel textBodyPanel = mainPanel.getTextBodyPanel();
-            if (textBodyPanel == null) {
-                System.out.println("[DBG-PageDown] textBodyPanel is null, abort");
-                return;
-            }
-            if (!textBodyPanel.isContentVisible()) {
-                System.out.println("[DBG-PageDown] contentVisible=false, skip paging");
+            if (textBodyPanel == null || !textBodyPanel.isContentVisible()) {
+                log.debug("正文面板不可见，跳过翻页");
                 return;
             }
 
-            boolean canPD = textBodyPanel.canPageDown();
-            System.out.println("[DBG-PageDown] canPageDown=" + canPD);
-            if (canPD) {
+            if (textBodyPanel.canPageDown()) {
                 int newPos = textBodyPanel.pageDown();
-                System.out.println("[DBG-PageDown] pageDown returned " + newPos);
                 if (newPos >= 0) {
+                    log.debug("向下翻页完成，跳转到位置 {}", newPos);
                     return;
                 }
             }
 
             // 已经到底部，触发下一章
-            System.out.println("[DBG-PageDown] dispatching NEXT_CHAPTER");
+            log.debug("已到当前章节底部，切换到下一章");
             CommandBus.getInstance().dispatch(Command.of(CommandType.NEXT_CHAPTER));
         });
     }
