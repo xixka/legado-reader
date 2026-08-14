@@ -9,6 +9,7 @@ import com.intellij.ui.components.JBScrollPane;
 import com.nancheung.plugins.jetbrains.legadoreader.command.Command;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandBus;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
+import com.nancheung.plugins.jetbrains.legadoreader.command.payload.NavigateChapterPayload;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.toolwindow.styling.TextBodyStyling;
 import lombok.extern.slf4j.Slf4j;
 
@@ -136,8 +137,9 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             int newPos = pageUp();
             if (newPos >= 0) return;
         }
-        // 已到顶部，触发上一章
-        CommandBus.getInstance().dispatchAsync(Command.of(CommandType.PREVIOUS_CHAPTER));
+        // 已到顶部，触发上一章（定位到末尾，与 PreviousPageHandler 行为一致）
+        CommandBus.getInstance().dispatchAsync(
+                Command.of(CommandType.PREVIOUS_CHAPTER, new NavigateChapterPayload(true)));
     }
 
     /**

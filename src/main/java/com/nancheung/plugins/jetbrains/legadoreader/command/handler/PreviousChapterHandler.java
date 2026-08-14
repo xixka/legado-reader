@@ -109,8 +109,9 @@ public class PreviousChapterHandler implements CommandHandler<CommandPayload> {
                 // 状态转换
                 stateMachine.transition(ReadingSessionState.READING);
 
-                // 光标位置：定位到末尾时使用文档长度，否则为 0
-                int cursorPosition = positionAtEnd ? content.length() : 0;
+                // 光标位置：定位到末尾时用 MAX_VALUE（handleLoadingSuccess 会判断 caretPos >= docLength 走 scrollToPosition 滚到末尾）
+                // 注意不能用 content.length()，因为实际文档是 title + "\n" + content，content.length() < 文档总长度
+                int cursorPosition = positionAtEnd ? Integer.MAX_VALUE : 0;
 
                 // 发布成功事件
                 publisher.publish(ReadingEvent.chapterLoaded(
