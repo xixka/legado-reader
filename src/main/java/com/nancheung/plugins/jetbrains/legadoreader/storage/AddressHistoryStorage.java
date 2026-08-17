@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -24,6 +25,11 @@ import java.util.stream.Collectors;
 @Service
 @State(name = "LegadoReaderAddressHistory",storages = @Storage("nancheung-legadoReader-addressHistory.xml"))
 public final class AddressHistoryStorage implements PersistentStateComponent<AddressHistoryStorage.State> {
+
+    /**
+     * 地址协议前缀正则（预编译，normalizeAddress 高频调用）
+     */
+    private static final Pattern SCHEME_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+.-]*://.*");
 
     /**
      * 内部状态类，用于 XML 序列化
@@ -96,8 +102,8 @@ public final class AddressHistoryStorage implements PersistentStateComponent<Add
             return trimmed;
         }
 
-        // 1. 补全协议前缀
-        if (!trimmed.matches("^[a-zA-Z][a-zA-Z0-9+.-]*://.*")) {
+        // 1. 补全协议前缀（预编译正则，避免每次调用都重新编译）
+        if (!SCHEME_PATTERN.matcher(trimmed).matches()) {
             trimmed = "http://" + trimmed;
         }
 

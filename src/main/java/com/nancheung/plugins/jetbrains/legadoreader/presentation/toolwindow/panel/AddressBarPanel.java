@@ -39,8 +39,9 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
     private JButton addButton;
     private JButton refreshButton;
 
-    // ==================== 数据模型（静态，多窗口共享） ====================
-    private static final DefaultComboBoxModel<String> ADDRESS_HISTORY_MODEL = new DefaultComboBoxModel<>();
+    // ==================== 数据模型 ====================
+    // 面板本身是单例（随 MainReaderPanel 创建），改为实例字段避免静态共享状态
+    private final DefaultComboBoxModel<String> ADDRESS_HISTORY_MODEL = new DefaultComboBoxModel<>();
 
     // ==================== 回调接口 ====================
     private final Supplier<T> loadAction;

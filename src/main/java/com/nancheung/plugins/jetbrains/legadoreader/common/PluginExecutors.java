@@ -19,6 +19,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class PluginExecutors {
 
+    private static final AtomicInteger SEQ = new AtomicInteger();
+
     /**
      * IO 线程池（守护线程，不阻止 IDE 退出）
      * 2 个线程：章节加载与进度同步可并行，互不阻塞
@@ -29,7 +31,18 @@ public final class PluginExecutors {
         return thread;
     });
 
-    private static final AtomicInteger SEQ = new AtomicInteger();
+    /**
+     * 分页专用单线程池
+     * <p>
+     * 分页任务必须严格串行：快速连续切章时，若两个分页任务并行交错，
+     * 后完成者会覆盖先完成者，导致显示的页码与章节错乱。
+     * 单线程 + 任务按事件顺序提交（invokeLater FIFO）保证顺序一致。
+     */
+    private static final ExecutorService PAGINATION_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread thread = new Thread(r, "legado-reader-pagination");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private PluginExecutors() {
     }
@@ -39,5 +52,12 @@ public final class PluginExecutors {
      */
     public static ExecutorService io() {
         return IO_EXECUTOR;
+    }
+
+    /**
+     * 获取分页专用单线程池（任务按提交顺序串行执行）
+     */
+    public static ExecutorService pagination() {
+        return PAGINATION_EXECUTOR;
     }
 }

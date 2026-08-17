@@ -66,8 +66,9 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
     private JButton cacheButton;
     private JButton cancelButton;
 
-    // ==================== 数据模型（静态，多窗口共享） ====================
-    private static final DefaultTableModel BOOK_SHELF_TABLE_MODEL =
+    // ==================== 数据模型 ====================
+    // 面板本身是单例（MainReaderPanel.getInstance()），改为实例字段避免静态共享状态
+    private final DefaultTableModel BOOK_SHELF_TABLE_MODEL =
             new DefaultTableModel(null, new String[]{"书名", "当前章节", "最新章节", "作者", "缓存状态"}) {
                 @Override
                 public boolean isCellEditable(int row, int column) {

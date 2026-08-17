@@ -428,13 +428,20 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             Rectangle rect = textBodyPane.modelToView2D(pos).getBounds();
             if (rect == null) return pos;
             int lineY = rect.y;
-            int lineStart = pos;
-            while (lineStart > 0) {
-                Rectangle prevRect = textBodyPane.modelToView2D(lineStart - 1).getBounds();
-                if (prevRect == null || prevRect.y != lineY) break;
-                lineStart--;
+
+            // 二分查找行首：文本布局的 y 坐标随偏移单调不减，
+            // 找 [0, pos] 内最小的 y == lineY 的偏移（O(log n) 次布局查询，替代逐字符回扫）
+            int lo = 0, hi = pos;
+            while (lo < hi) {
+                int mid = (lo + hi) >>> 1;
+                Rectangle r = textBodyPane.modelToView2D(mid).getBounds();
+                if (r == null || r.y < lineY) {
+                    lo = mid + 1;
+                } else {
+                    hi = mid;
+                }
             }
-            return lineStart;
+            return lo;
         } catch (BadLocationException e) {
             return pos;
         }
@@ -453,11 +460,19 @@ public class TextBodyPanel extends JBPanel<TextBodyPanel> {
             if (currentRect == null) return totalLen;
             int currentY = currentRect.y;
 
-            for (int i = lineStart + 1; i < totalLen; i++) {
-                Rectangle r = textBodyPane.modelToView2D(i).getBounds();
-                if (r == null || r.y == currentY) continue;
-                if (r.y > currentY) return i;
+            // 二分查找下一行行首：y 随偏移单调不减，
+            // 找 (lineStart, totalLen) 内最小的 y > currentY 的偏移（O(log n) 次布局查询，替代逐字符扫描）
+            int lo = lineStart + 1, hi = totalLen;
+            while (lo < hi) {
+                int mid = (lo + hi) >>> 1;
+                Rectangle r = textBodyPane.modelToView2D(mid).getBounds();
+                if (r == null || r.y <= currentY) {
+                    lo = mid + 1;
+                } else {
+                    hi = mid;
+                }
             }
+            return lo;
         } catch (BadLocationException ignored) {}
         return totalLen;
     }

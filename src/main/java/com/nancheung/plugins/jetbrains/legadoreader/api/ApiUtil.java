@@ -134,12 +134,12 @@ public class ApiUtil {
     private <R> R get(String url, TypeReference<R> typeReference) {
         String textBody;
 
-        try {
-            textBody = HttpUtil.createGet(url)
-                    .form(parseCustomParams())
-                    .timeout(REQUEST_TIMEOUT_MS)
-                    .execute()
-                    .body();
+        // try-with-resources 确保响应关闭，连接归还 JVM keep-alive 缓存供后续复用
+        try (HttpResponse response = HttpUtil.createGet(url)
+                .form(parseCustomParams())
+                .timeout(REQUEST_TIMEOUT_MS)
+                .execute()) {
+            textBody = response.body();
         } catch (Exception e) {
             throw new RuntimeException(String.format("\n%s：%s\n参数：\n%s\n", "调用API失败", url, parseCustomParams()), e);
         }

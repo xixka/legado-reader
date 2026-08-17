@@ -7,6 +7,7 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Objects;
@@ -53,6 +54,22 @@ public class AesCryptoUtil {
      * 安全随机数生成器
      */
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    /**
+     * Cipher 实例复用（线程本地缓存）
+     * <p>
+     * {@code Cipher.getInstance} 涉及 JCA Provider 查找，开销较大；
+     * 缓存整本书时每章都会加解密，频繁新建实例会成为热点。
+     * Cipher 非线程安全，用 ThreadLocal 保证每线程独立实例；
+     * 每次 init 会重置内部状态，线程内复用安全。
+     */
+    private static final ThreadLocal<Cipher> CIPHER_HOLDER = ThreadLocal.withInitial(() -> {
+        try {
+            return Cipher.getInstance(TRANSFORMATION);
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("初始化 AES Cipher 失败", e);
+        }
+    });
 
     // ==================== 密钥工具 ====================
 
@@ -110,7 +127,7 @@ public class AesCryptoUtil {
             byte[] iv = new byte[IV_LENGTH];
             SECURE_RANDOM.nextBytes(iv);
 
-            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            Cipher cipher = CIPHER_HOLDER.get();
             cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, ALGORITHM), new IvParameterSpec(iv));
 
             byte[] cipherText = cipher.doFinal(data);
@@ -143,7 +160,7 @@ public class AesCryptoUtil {
             System.arraycopy(encrypted, 0, iv, 0, IV_LENGTH);
             System.arraycopy(encrypted, IV_LENGTH, cipherText, 0, cipherText.length);
 
-            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            Cipher cipher = CIPHER_HOLDER.get();
             cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key, ALGORITHM), new IvParameterSpec(iv));
 
             return cipher.doFinal(cipherText);

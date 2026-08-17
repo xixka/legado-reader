@@ -52,6 +52,14 @@ import java.util.stream.Collectors;
 public final class OfflineCacheService {
 
     /**
+     * 缓存进度的批量落盘间隔（章）。
+     * <p>
+     * 此前每缓存一章就写一次进度文件，1000 章的书会产生 1000 次磁盘写；
+     * 改为批量写后取消/失败/完成时仍必定落盘。
+     */
+    private static final int PROGRESS_SAVE_INTERVAL = 20;
+
+    /**
      * 获取单例实例
      */
     public static OfflineCacheService getInstance() {
@@ -231,8 +239,11 @@ public final class OfflineCacheService {
                         bitmap.set(i);
                         cachedCount++;
 
-                        // 每章都持久化进度（文件很小，保证崩溃不丢进度）
-                        saveProgress(storage, progress, bitmap, cachedCount, BookCacheProgress.STATUS_INCOMPLETE);
+                        // 批量持久化进度：每 PROGRESS_SAVE_INTERVAL 章写一次磁盘，
+                        // 取消/失败/完成时必定落盘（崩溃最多丢 N-1 章进度，可断点续传）
+                        if (cachedCount % PROGRESS_SAVE_INTERVAL == 0) {
+                            saveProgress(storage, progress, bitmap, cachedCount, BookCacheProgress.STATUS_INCOMPLETE);
+                        }
 
                         // 每章都发布进度事件（进度条每章加 1）
                         publisher.publish(CacheEvent.progress(commandId, bookUrl, book.getName(), total, cachedCount));

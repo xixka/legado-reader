@@ -11,12 +11,14 @@ import com.nancheung.plugins.jetbrains.legadoreader.event.ReaderEventListener;
 import com.nancheung.plugins.jetbrains.legadoreader.event.ReadingEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.event.SettingsChangedEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.presentation.common.UIEventSubscriber;
+import com.nancheung.plugins.jetbrains.legadoreader.common.PluginExecutors;
 import com.nancheung.plugins.jetbrains.legadoreader.service.PaginationManager;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 编辑器行内阅读服务，请使用事件订阅模式，不要直接调用此类的方法
@@ -53,27 +55,51 @@ public class EditorLineReaderService extends UIEventSubscriber {
             return;
         }
 
-        // 获取内容并重新分页
+        // 提取事件数据（lambda 内引用的局部变量需 effectively final）
         String content = event.content();
+        String chapterTitle = event.chapter() != null ? event.chapter().getTitle() : "";
+        ReadingEvent.Direction direction = event.direction();
+        int pageSize = getPageSize();
 
-        int pageSize = new JLabel().getFont().getSize() * 2;
-        paginationManager.paginate(content, pageSize);
+        // 分页需遍历全文章节字符，长章节耗时明显；放到分页专用单线程执行，避免阻塞 EDT。
+        // 必须串行：快速连续切章时防止两个分页任务交错导致页码与章节错乱
+        //（refreshEditor 内部会 invokeLater 回 EDT，可安全在后台线程调用）
+        CompletableFuture.runAsync(() -> {
+            // 获取内容并重新分页
+            paginationManager.paginate(content, pageSize);
 
-        // 根据方向定位页码
-        if (event.direction() == ReadingEvent.Direction.PREVIOUS) {
-            // 上一章，定位到最后一页
-            paginationManager.goToLastPage();
-            log.debug("上一章，定位到最后一页");
-        } else {
-            // 下一章或跳转，定位到第一页
-            paginationManager.goToFirstPage();
-            log.debug("下一章或跳转，定位到第一页");
+            // 根据方向定位页码
+            if (direction == ReadingEvent.Direction.PREVIOUS) {
+                // 上一章，定位到最后一页
+                paginationManager.goToLastPage();
+                log.debug("上一章，定位到最后一页");
+            } else {
+                // 下一章或跳转，定位到第一页
+                paginationManager.goToFirstPage();
+                log.debug("下一章或跳转，定位到第一页");
+            }
+
+            // 刷新编辑器
+            refreshEditor();
+
+            log.info("EditorLine 事件处理完成：{}", chapterTitle);
+        }, PluginExecutors.pagination());
+    }
+
+    /**
+     * 页大小缓存（Label 默认字号 × 2）
+     * 避免每次章节事件都创建 JLabel（Swing 组件创建有开销）
+     */
+    private static volatile int cachedPageSize = 0;
+
+    private static int getPageSize() {
+        int size = cachedPageSize;
+        if (size <= 0) {
+            Font labelFont = UIManager.getFont("Label.font");
+            size = (labelFont != null ? labelFont.getSize() : 12) * 2;
+            cachedPageSize = size;
         }
-
-        // 刷新编辑器
-        refreshEditor();
-
-        log.info("EditorLine 事件处理完成：{}", event.chapter().getTitle());
+        return size;
     }
 
     /**
