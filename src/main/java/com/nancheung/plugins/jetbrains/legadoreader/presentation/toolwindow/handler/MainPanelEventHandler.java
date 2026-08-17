@@ -135,15 +135,15 @@ public class MainPanelEventHandler {
 
     /**
      * 处理离线缓存事件
-     * 委托给 CacheProgressPanel 更新进度展示，并同步刷新书架表格的缓存状态列
+     * 委托给 CacheProgressPanel 更新进度展示，并同步刷新书架缓存按钮状态
      */
     public void handleCacheEvent(CacheEvent event) {
         if (cacheProgressPanel != null) {
             cacheProgressPanel.handleCacheEvent(event);
         }
-        // 同步刷新书架表格的缓存状态列（STARTED/PROGRESS/COMPLETED/FAILED/CANCELED 都要更新）
+        // 同步刷新书架缓存按钮状态（STARTED/PROGRESS/COMPLETED/FAILED/CANCELED 都要更新）
         if (bookshelfPanel != null) {
-            bookshelfPanel.refreshCacheStatus();
+            bookshelfPanel.refreshCacheButtons();
         }
     }
 

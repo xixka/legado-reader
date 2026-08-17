@@ -90,16 +90,28 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
         addButton = new JButton("添加");
         addButton.setName("addButton");
         addButton.setToolTipText("添加新的阅读服务器地址（不带端口自动补 1122）");
+        applyTransparentButtonStyle(addButton);
 
-        // 透明按钮
-        refreshButton = new JButton("透明");
+        // 刷新按钮（此前误将文案改成"透明"二字；现恢复文案"刷新"，按钮本体改为透明样式）
+        refreshButton = new JButton("刷新");
         refreshButton.setName("refreshButton");
+        applyTransparentButtonStyle(refreshButton);
 
         add(addressHistoryBox);
         add(Box.createHorizontalStrut(JBUI.scale(4)));
         add(addButton);
         add(Box.createHorizontalStrut(JBUI.scale(4)));
         add(refreshButton);
+    }
+
+    /**
+     * 按钮透明样式：不绘制背景填充与边框，透出背景图，仅保留文字
+     */
+    private void applyTransparentButtonStyle(JButton button) {
+        button.setOpaque(false);
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
     }
 
     // ==================== 事件绑定方法 ====================

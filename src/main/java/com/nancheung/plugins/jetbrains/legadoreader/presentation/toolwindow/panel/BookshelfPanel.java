@@ -20,6 +20,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.service.OfflineCacheService;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.BookCacheStorage;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheMeta;
+import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.LocalReadingProgress;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
@@ -68,8 +69,9 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
 
     // ==================== 数据模型 ====================
     // 面板本身是单例（MainReaderPanel.getInstance()），改为实例字段避免静态共享状态
+    // "缓存状态"列已按需求移除，仅保留：书名 / 当前章节 / 最新章节 / 作者
     private final DefaultTableModel BOOK_SHELF_TABLE_MODEL =
-            new DefaultTableModel(null, new String[]{"书名", "当前章节", "最新章节", "作者", "缓存状态"}) {
+            new DefaultTableModel(null, new String[]{"书名", "当前章节", "最新章节", "作者"}) {
                 @Override
                 public boolean isCellEditable(int row, int column) {
                     return false;
@@ -101,10 +103,8 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         // 2.1 内容卡片：书架表格
         bookshelfTable = createBookshelfTable();
         bookshelfTable.setOpaque(false);
-        // 设置列宽：缓存状态列收紧
+        // 设置列宽
         bookshelfTable.getColumnModel().getColumn(0).setPreferredWidth(120);
-        bookshelfTable.getColumnModel().getColumn(4).setPreferredWidth(80);
-        bookshelfTable.getColumnModel().getColumn(4).setMaxWidth(100);
         JBScrollPane shelfScrollPane = new JBScrollPane(bookshelfTable);
         shelfScrollPane.setOpaque(false);
         shelfScrollPane.getViewport().setOpaque(false);
@@ -202,15 +202,27 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         cacheButton.setToolTipText("将选中的书籍后台缓存到本地（AES-256 加密）");
         cacheButton.setEnabled(false);
         cacheButton.addActionListener(e -> triggerCacheForSelectedBook());
+        applyTransparentButtonStyle(cacheButton);
 
         cancelButton = new JButton("删除缓存");
         cancelButton.setToolTipText("删除本书已缓存到本地的数据");
         cancelButton.setEnabled(false);
         cancelButton.addActionListener(e -> confirmAndDeleteCache());
+        applyTransparentButtonStyle(cancelButton);
 
         bar.add(cacheButton);
         bar.add(cancelButton);
         return bar;
+    }
+
+    /**
+     * 按钮透明样式：不绘制背景填充与边框，透出背景图，仅保留文字
+     */
+    private void applyTransparentButtonStyle(JButton button) {
+        button.setOpaque(false);
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
     }
 
     /**
@@ -308,58 +320,18 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         if (offlineMode) {
             loadOfflineBookshelf();
         } else {
-            refreshCacheStatus();
+            refreshCacheButtons();
         }
     }
 
     /**
-     * 刷新所有书籍的缓存状态列
+     * 刷新缓存按钮状态
+     * <p>
+     * "缓存状态"列已按需求移除，缓存事件的展示由底部 CacheProgressPanel 负责，
+     * 此处仅刷新底部缓存按钮的可见性/启用状态。
      */
-    public void refreshCacheStatus() {
-        int rowCount = BOOK_SHELF_TABLE_MODEL.getRowCount();
-        if (rowCount == 0 || bookshelf == null) {
-            return;
-        }
-        for (int row = 0; row < rowCount; row++) {
-            String name = String.valueOf(BOOK_SHELF_TABLE_MODEL.getValueAt(row, 0));
-            String author = String.valueOf(BOOK_SHELF_TABLE_MODEL.getValueAt(row, 3));
-            BookDTO book = getBook(author, name);
-            String statusText = computeCacheStatusText(book);
-            BOOK_SHELF_TABLE_MODEL.setValueAt(statusText, row, 4);
-        }
+    public void refreshCacheButtons() {
         updateCacheButtonState();
-    }
-
-    /**
-     * 计算某本书的缓存状态展示文本
-     */
-    private String computeCacheStatusText(BookDTO book) {
-        if (book == null) {
-            return "-";
-        }
-        String bookUrl = book.getBookUrl();
-        if (OfflineCacheService.getInstance().isCacheRunning(bookUrl)) {
-            com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheProgress progress =
-                    OfflineCacheService.getInstance().getProgress(bookUrl);
-            int cached = progress != null ? progress.getCachedChapters() : 0;
-            int total = progress != null ? progress.getTotalChapters() : 0;
-            return total > 0 ? "缓存中 " + (cached * 100 / total) + "%" : "缓存中";
-        }
-        com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheMeta meta =
-                OfflineCacheService.getInstance().getMeta(bookUrl);
-        if (meta == null) {
-            return "未缓存";
-        }
-        com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheProgress progress =
-                OfflineCacheService.getInstance().getProgress(bookUrl);
-        if (progress != null && "COMPLETE".equals(progress.getStatus())) {
-            return "已缓存";
-        }
-        if (progress != null && progress.getTotalChapters() > 0) {
-            int percent = progress.getCachedChapters() * 100 / progress.getTotalChapters();
-            return "已缓存 " + percent + "%";
-        }
-        return "部分缓存";
     }
 
     // ==================== 状态切换方法 ====================
@@ -392,6 +364,9 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
                     List<BookDTO> books = metas.stream()
                             .map(BookCacheMeta::getBookSnapshot)
                             .filter(Objects::nonNull)
+                            // 合并本地阅读进度：快照中的"当前章节"停留在缓存那一刻，
+                            // 阅读过程中切章会持续写入本地进度文件，这里读取覆盖，保证显示真实进度
+                            .peek(this::applyLocalReadingProgress)
                             .toList();
 
                     if (books.isEmpty()) {
@@ -405,6 +380,31 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
                     handleBooksLoaded(books);
                     log.info("已加载离线缓存书架：{} 本", books.size());
                 }));
+    }
+
+    /**
+     * 将本地保存的阅读进度合并到书籍快照
+     * <p>
+     * 离线书架的书籍信息来自缓存时的快照（bookSnapshot），"当前章节"停留在缓存那一刻；
+     * 阅读过程中切章会持续写入本地进度文件（LocalReadingProgress），
+     * 这里读取并覆盖快照字段，保证离线书架显示真实的阅读进度。
+     * 同时双击打开时 SelectBookPayload 携带的章节索引也是最新值。
+     */
+    private void applyLocalReadingProgress(BookDTO book) {
+        LocalReadingProgress progress = OfflineCacheService.getInstance().getReadingProgress(book.getBookUrl());
+        if (progress == null || progress.getDurChapterIndex() == null) {
+            return;
+        }
+        book.setDurChapterIndex(progress.getDurChapterIndex());
+        if (progress.getDurChapterTitle() != null) {
+            book.setDurChapterTitle(progress.getDurChapterTitle());
+        }
+        if (progress.getDurChapterPos() != null) {
+            book.setDurChapterPos(progress.getDurChapterPos());
+        }
+        if (progress.getDurChapterTime() != null) {
+            book.setDurChapterTime(progress.getDurChapterTime());
+        }
     }
 
     /**
@@ -443,14 +443,13 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
         // 清空表格
         BOOK_SHELF_TABLE_MODEL.getDataVector().clear();
 
-        // 添加表格数据（含缓存状态列）
+        // 添加表格数据（"缓存状态"列已按需求移除；空标题显示占位符）
         books.forEach(book -> {
             Vector<String> bookVector = new Vector<>();
             bookVector.add(book.getName());
-            bookVector.add(book.getDurChapterTitle());
-            bookVector.add(book.getLatestChapterTitle());
+            bookVector.add(book.getDurChapterTitle() != null ? book.getDurChapterTitle() : "-");
+            bookVector.add(book.getLatestChapterTitle() != null ? book.getLatestChapterTitle() : "-");
             bookVector.add(book.getAuthor());
-            bookVector.add(computeCacheStatusText(book));
             BOOK_SHELF_TABLE_MODEL.addRow(bookVector);
         });
 
