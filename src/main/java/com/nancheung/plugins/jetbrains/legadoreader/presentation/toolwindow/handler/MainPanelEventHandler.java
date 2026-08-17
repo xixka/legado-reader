@@ -204,6 +204,13 @@ public class MainPanelEventHandler {
 
         // 请求焦点到面板，使方向键快捷键立即生效
         textBodyPanel.requestFocusInWindow();
+
+        // 同步更新书架"当前章节"列与内存进度（离线模式下服务器无法同步，本地必须即时反馈）
+        bookshelfPanel.updateReadingProgress(
+                event.book(),
+                ReadingSessionManager.getInstance().getCurrentChapterIndex(),
+                title
+        );
     }
 
     /**

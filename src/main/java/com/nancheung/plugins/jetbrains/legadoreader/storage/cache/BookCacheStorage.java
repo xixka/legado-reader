@@ -9,6 +9,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.crypto.AesCryptoUtil;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheMeta;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheProgress;
+import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.LocalReadingProgress;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -62,6 +63,11 @@ public final class BookCacheStorage {
      * 进度文件名
      */
     private static final String PROGRESS_FILE = "progress.enc";
+
+    /**
+     * 本地阅读进度文件名（区别于缓存进度位图，保存的是用户阅读位置）
+     */
+    private static final String READING_PROGRESS_FILE = "reading-progress.enc";
 
     /**
      * 章节文件后缀
@@ -373,6 +379,63 @@ public final class BookCacheStorage {
             return MAPPER.readValue(json, BookCacheProgress.class);
         } catch (Exception e) {
             log.warn("读取进度失败：book={}", bookUrl, e);
+            return null;
+        }
+    }
+
+    // ==================== 本地阅读进度读写 ====================
+
+    /**
+     * 保存本地阅读进度（加密独立小文件，切章时写入，开销极小）
+     * <p>
+     * 服务器离线时进度无法同步到 legado，落地本地以保证重开书籍能恢复位置。
+     *
+     * @param progress 本地阅读进度
+     */
+    public void saveLocalReadingProgress(LocalReadingProgress progress) {
+        if (progress == null || progress.getBookUrl() == null) {
+            return;
+        }
+        byte[] key = getKey();
+        if (key == null) {
+            log.debug("缓存未启用，跳过保存本地阅读进度");
+            return;
+        }
+        try {
+            Path dir = getBookDir(progress.getBookUrl());
+            Files.createDirectories(dir);
+            String json = MAPPER.writeValueAsString(progress);
+            byte[] encrypted = AesCryptoUtil.encryptString(json, key);
+            Files.write(dir.resolve(READING_PROGRESS_FILE), encrypted);
+        } catch (IOException e) {
+            log.error("保存本地阅读进度失败：book={}", progress.getBookUrl(), e);
+        }
+    }
+
+    /**
+     * 读取本地阅读进度
+     *
+     * @param bookUrl 书籍 URL
+     * @return 本地阅读进度；不存在或读取失败则返回 null
+     */
+    public LocalReadingProgress loadLocalReadingProgress(String bookUrl) {
+        if (bookUrl == null) {
+            return null;
+        }
+        byte[] key = getKey();
+        if (key == null) {
+            return null;
+        }
+        Path file = getBookDir(bookUrl).resolve(READING_PROGRESS_FILE);
+        if (!Files.exists(file)) {
+            return null;
+        }
+        try {
+            byte[] encrypted = Files.readAllBytes(file);
+            String json = AesCryptoUtil.decryptToString(encrypted, key);
+            return MAPPER.readValue(json, LocalReadingProgress.class);
+        } catch (Exception e) {
+            log.warn("读取本地阅读进度失败：book={}", bookUrl, e);
             return null;
         }
     }

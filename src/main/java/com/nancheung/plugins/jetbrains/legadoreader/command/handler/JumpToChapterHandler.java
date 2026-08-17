@@ -6,6 +6,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.api.dto.BookDTO;
 import com.nancheung.plugins.jetbrains.legadoreader.command.Command;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.JumpToChapterPayload;
+import com.nancheung.plugins.jetbrains.legadoreader.common.PluginExecutors;
 import com.nancheung.plugins.jetbrains.legadoreader.event.EventPublisher;
 import com.nancheung.plugins.jetbrains.legadoreader.event.ReadingEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.manager.ReadingSessionManager;
@@ -13,6 +14,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSession;
 import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSessionState;
 import com.nancheung.plugins.jetbrains.legadoreader.service.OfflineCacheService;
 import com.nancheung.plugins.jetbrains.legadoreader.service.ReadingSessionStateMachine;
+import com.nancheung.plugins.jetbrains.legadoreader.storage.AddressHistoryStorage;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import lombok.extern.slf4j.Slf4j;
 
@@ -93,7 +95,7 @@ public class JumpToChapterHandler implements CommandHandler<JumpToChapterPayload
                 ReadingEvent.Direction.JUMP
         ));
 
-        // 7. 异步加载章节内容
+        // 7. 异步加载章节内容（使用专用 IO 线程池，避免与进度同步等阻塞任务互相排队）
         int previousIndex = currentIndex;
         CompletableFuture.runAsync(() -> {
             try {
@@ -101,6 +103,10 @@ public class JumpToChapterHandler implements CommandHandler<JumpToChapterPayload
                 // 优先从离线缓存读取，未命中再走 API
                 String content = OfflineCacheService.getInstance().tryLoadChapterFromCache(book.getBookUrl(), targetIndex);
                 if (content == null) {
+                    // 离线模式下服务器不可达，直接快速失败，不再等待网络超时
+                    if (AddressHistoryStorage.getInstance().isOfflineMode()) {
+                        throw new IllegalStateException("离线模式：该章节未缓存，无法加载。请联网缓存后再试。");
+                    }
                     content = ApiUtil.getBookContent(book.getBookUrl(), targetIndex);
                 }
 
@@ -123,6 +129,9 @@ public class JumpToChapterHandler implements CommandHandler<JumpToChapterPayload
 
                 log.info("跳转章节成功：{}", chapter.getTitle());
 
+                // 保存本地阅读进度（离线重开也能恢复位置）
+                OfflineCacheService.getInstance().saveReadingProgress(book.getBookUrl(), targetIndex, chapter.getTitle(), 0);
+
                 // 异步同步进度到服务器（不等待）
                 syncProgressAsync(book, targetIndex, chapter.getTitle(), 0);
 
@@ -143,13 +152,18 @@ public class JumpToChapterHandler implements CommandHandler<JumpToChapterPayload
                     log.error("跳转章节失败", e);
                 }
             }
-        });
+        }, PluginExecutors.io());
     }
 
     /**
      * 异步同步阅读进度到服务器
+     * 离线模式下直接跳过（服务器不可达，请求只会阻塞线程约 2 秒后失败）
      */
     private void syncProgressAsync(BookDTO book, int chapterIndex, String chapterTitle, int position) {
+        if (AddressHistoryStorage.getInstance().isOfflineMode()) {
+            log.debug("离线模式，跳过服务器进度同步：{} - {}", book.getName(), chapterTitle);
+            return;
+        }
         CompletableFuture.runAsync(() -> {
             try {
                 ApiUtil.saveBookProgress(
@@ -164,6 +178,6 @@ public class JumpToChapterHandler implements CommandHandler<JumpToChapterPayload
                 log.warn("同步阅读进度失败", e);
                 // 忽略同步失败，不影响阅读体验
             }
-        });
+        }, PluginExecutors.io());
     }
 }

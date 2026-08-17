@@ -31,6 +31,10 @@ public final class AddressHistoryStorage implements PersistentStateComponent<Add
      */
     public static class State {
         public List<HistoryItemState> items = new ArrayList<>();
+        /**
+         * 是否处于离线模式（地址栏选中"离线"）
+         */
+        public boolean offlineMode = false;
     }
 
     /**
@@ -161,5 +165,22 @@ public final class AddressHistoryStorage implements PersistentStateComponent<Add
     public String getMostRecent() {
         List<HistoryItemState> items = getState().items;
         return items.isEmpty() ? null : normalizeAddress(items.getFirst().address);
+    }
+
+    /**
+     * 是否处于离线模式（地址栏选中"离线"）
+     * <p>
+     * 离线模式下：进度不同步到服务器、章节内容不走 API 兜底（快速失败）、
+     * 打开书籍时优先恢复本地保存的阅读进度。
+     */
+    public boolean isOfflineMode() {
+        return getState().offlineMode;
+    }
+
+    /**
+     * 设置离线模式标志（由地址栏切换选项时调用）
+     */
+    public void setOfflineMode(boolean offlineMode) {
+        getState().offlineMode = offlineMode;
     }
 }

@@ -4,6 +4,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.ui.components.JBPanel;
 import com.intellij.util.ui.JBUI;
+import com.nancheung.plugins.jetbrains.legadoreader.common.PluginExecutors;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.AddressHistoryStorage;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import lombok.extern.slf4j.Slf4j;
@@ -152,6 +153,8 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
 
         // 离线模式：不走 API，直接调用回调（loadOfflineBookshelf 内部异步处理）
         if (OFFLINE_CACHE_OPTION.equals(selected)) {
+            // 标记全局离线模式：进度同步、内容加载兜底等据此跳过网络请求
+            AddressHistoryStorage.getInstance().setOfflineMode(true);
             refreshButton.setEnabled(false);
             onOfflineMode.run();
             refreshButton.setEnabled(true);
@@ -159,6 +162,7 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
         }
 
         // 在线模式
+        AddressHistoryStorage.getInstance().setOfflineMode(false);
         refreshButton.setEnabled(false);
 
         if (selected == null || selected.trim().isEmpty()) {
@@ -172,7 +176,7 @@ public class AddressBarPanel<T> extends JBPanel<AddressBarPanel<T>> {
         refreshHistory();
 
         String current = (String) addressHistoryBox.getSelectedItem();
-        CompletableFuture.supplyAsync(loadAction)
+        CompletableFuture.supplyAsync(loadAction, PluginExecutors.io())
                 .handle((result, throwable) -> {
                     ApplicationManager.getApplication().invokeLater(() -> {
                         if (throwable == null) {

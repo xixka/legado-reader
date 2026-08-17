@@ -7,6 +7,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.command.Command;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.CommandPayload;
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.NavigateChapterPayload;
+import com.nancheung.plugins.jetbrains.legadoreader.common.PluginExecutors;
 import com.nancheung.plugins.jetbrains.legadoreader.event.EventPublisher;
 import com.nancheung.plugins.jetbrains.legadoreader.event.ReadingEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.manager.ReadingSessionManager;
@@ -14,6 +15,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSession;
 import com.nancheung.plugins.jetbrains.legadoreader.model.ReadingSessionState;
 import com.nancheung.plugins.jetbrains.legadoreader.service.OfflineCacheService;
 import com.nancheung.plugins.jetbrains.legadoreader.service.ReadingSessionStateMachine;
+import com.nancheung.plugins.jetbrains.legadoreader.storage.AddressHistoryStorage;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import lombok.extern.slf4j.Slf4j;
 
@@ -90,20 +92,26 @@ public class PreviousChapterHandler implements CommandHandler<CommandPayload> {
             ));
         }
 
-        // 8. 异步加载数据
+        // 8. 异步加载数据（使用专用 IO 线程池，避免与进度同步等阻塞任务互相排队）
         final String contentFromCache = cachedContent;
         CompletableFuture.runAsync(() -> {
+            boolean indexRolledBack = false;
             try {
                 List<BookChapterDTO> chapters = sessionManager.getChapters();
                 BookChapterDTO chapter = chapters.get(prevIndex);
                 // 使用缓存内容或从 API 获取
                 String content = contentFromCache;
                 if (content == null) {
+                    // 离线模式下服务器不可达，直接快速失败，不再等待网络超时
+                    if (AddressHistoryStorage.getInstance().isOfflineMode()) {
+                        throw new IllegalStateException("离线模式：该章节未缓存，无法加载。请联网缓存后再试。");
+                    }
                     content = ApiUtil.getBookContent(book.getBookUrl(), prevIndex);
                 }
 
                 // 更新会话
                 sessionManager.previousChapter();
+                indexRolledBack = true;
                 sessionManager.setContent(content);
 
                 // 状态转换
@@ -125,12 +133,17 @@ public class PreviousChapterHandler implements CommandHandler<CommandPayload> {
 
                 log.info("切换到上一章成功：{}，光标位置：{}", chapter.getTitle(), cursorPosition);
 
+                // 保存本地阅读进度（离线重开也能恢复位置）
+                OfflineCacheService.getInstance().saveReadingProgress(book.getBookUrl(), prevIndex, chapter.getTitle(), cursorPosition);
+
                 // 异步同步进度
                 syncProgressAsync(book, prevIndex, chapter.getTitle(), cursorPosition);
 
             } catch (Exception e) {
-                // 回滚状态
-                sessionManager.nextChapter();
+                // 回滚状态（仅当索引已后退时才回滚，避免索引漂移）
+                if (indexRolledBack) {
+                    sessionManager.nextChapter();
+                }
                 stateMachine.transition(ReadingSessionState.READING);
 
                 publisher.publish(ReadingEvent.chapterLoadFailed(
@@ -145,10 +158,18 @@ public class PreviousChapterHandler implements CommandHandler<CommandPayload> {
                     log.error("切换到上一章失败", e);
                 }
             }
-        });
+        }, PluginExecutors.io());
     }
 
+    /**
+     * 异步同步阅读进度到服务器
+     * 离线模式下直接跳过（服务器不可达，请求只会阻塞线程约 2 秒后失败）
+     */
     private void syncProgressAsync(BookDTO book, int chapterIndex, String chapterTitle, int position) {
+        if (AddressHistoryStorage.getInstance().isOfflineMode()) {
+            log.debug("离线模式，跳过服务器进度同步：{} - {}", book.getName(), chapterTitle);
+            return;
+        }
         CompletableFuture.runAsync(() -> {
             try {
                 ApiUtil.saveBookProgress(book.getAuthor(), book.getName(), chapterIndex, chapterTitle, position);
@@ -156,6 +177,6 @@ public class PreviousChapterHandler implements CommandHandler<CommandPayload> {
             } catch (Exception e) {
                 log.warn("同步阅读进度失败", e);
             }
-        });
+        }, PluginExecutors.io());
     }
 }

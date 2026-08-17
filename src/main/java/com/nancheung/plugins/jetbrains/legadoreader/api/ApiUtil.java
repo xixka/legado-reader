@@ -28,6 +28,14 @@ import java.util.stream.Collectors;
 public class ApiUtil {
 
     /**
+     * 请求超时时间（毫秒）：同时作用于连接与读取
+     * <p>
+     * 此前未设置超时，服务器不可达时要等 OS 层 TCP 连接失败（约 2 秒甚至更久），
+     * 期间阻塞线程并拖慢章节切换。
+     */
+    private static final int REQUEST_TIMEOUT_MS = 10_000;
+
+    /**
      * 获取书架目录列表
      *
      * @return 书架目录列表
@@ -115,6 +123,7 @@ public class ApiUtil {
         try {
             HttpUtil.createPost(url)
                     .form(formParams)
+                    .timeout(REQUEST_TIMEOUT_MS)
                     .execute();
         } catch (Exception e) {
             throw new RuntimeException(String.format("\n%s：%s\n参数：\n%s\n", "保存阅读进度失败", url, formParams), e);
@@ -126,7 +135,11 @@ public class ApiUtil {
         String textBody;
 
         try {
-            textBody = HttpUtil.get(url, parseCustomParams());
+            textBody = HttpUtil.createGet(url)
+                    .form(parseCustomParams())
+                    .timeout(REQUEST_TIMEOUT_MS)
+                    .execute()
+                    .body();
         } catch (Exception e) {
             throw new RuntimeException(String.format("\n%s：%s\n参数：\n%s\n", "调用API失败", url, parseCustomParams()), e);
         }
@@ -139,6 +152,7 @@ public class ApiUtil {
         try (HttpResponse execute = HttpUtil.createPost(url)
                 .form(parseCustomParams())
                 .body(JSONUtil.toJsonStr(body))
+                .timeout(REQUEST_TIMEOUT_MS)
                 .execute()) {
             textBody = execute.body();
         } catch (Exception e) {

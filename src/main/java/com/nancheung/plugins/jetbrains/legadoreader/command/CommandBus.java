@@ -3,6 +3,7 @@ package com.nancheung.plugins.jetbrains.legadoreader.command;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.Service;
 import com.nancheung.plugins.jetbrains.legadoreader.command.handler.CommandHandler;
+import com.nancheung.plugins.jetbrains.legadoreader.common.PluginExecutors;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.CompletableFuture;
@@ -54,11 +55,12 @@ public final class CommandBus {
     /**
      * 异步分发指令
      * 指令分发本身在后台线程执行
+     * （处理链路可能涉及缓存磁盘读取，统一走专用 IO 线程池，避免占用 ForkJoinPool.commonPool）
      *
      * @param command 指令对象
      */
     public void dispatchAsync(Command command) {
-        CompletableFuture.runAsync(() -> dispatch(command));
+        CompletableFuture.runAsync(() -> dispatch(command), PluginExecutors.io());
     }
 
     /**

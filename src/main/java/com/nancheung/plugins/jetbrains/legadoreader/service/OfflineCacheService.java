@@ -5,12 +5,14 @@ import com.intellij.openapi.components.Service;
 import com.nancheung.plugins.jetbrains.legadoreader.api.ApiUtil;
 import com.nancheung.plugins.jetbrains.legadoreader.api.dto.BookChapterDTO;
 import com.nancheung.plugins.jetbrains.legadoreader.api.dto.BookDTO;
+import com.nancheung.plugins.jetbrains.legadoreader.common.PluginExecutors;
 import com.nancheung.plugins.jetbrains.legadoreader.event.CacheEvent;
 import com.nancheung.plugins.jetbrains.legadoreader.event.EventPublisher;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.AddressHistoryStorage;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.BookCacheStorage;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheMeta;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.BookCacheProgress;
+import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.dto.LocalReadingProgress;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 
@@ -178,7 +180,7 @@ public final class OfflineCacheService {
         CacheTaskState state = new CacheTaskState(total, book.getName());
         runningTasks.put(bookUrl, state);
 
-        // 5. 启动异步任务
+        // 5. 启动异步任务（使用专用 IO 线程池，避免长时间占用 ForkJoinPool.commonPool）
         return CompletableFuture.runAsync(() -> {
             // 2. 加载或创建进度位图（final 单次赋值，保证 lambda 内 effectively final）
             final BitSet bitmap;
@@ -251,7 +253,7 @@ public final class OfflineCacheService {
                 state.done.set(true);
                 runningTasks.remove(bookUrl);
             }
-        });
+        }, PluginExecutors.io());
     }
 
     /**
@@ -369,5 +371,44 @@ public final class OfflineCacheService {
      */
     public boolean isBookComplete(String bookUrl, int totalChapters) {
         return BookCacheStorage.getInstance().isBookComplete(bookUrl, totalChapters);
+    }
+
+    // ==================== 本地阅读进度 ====================
+
+    /**
+     * 保存本地阅读进度（切章时调用，独立加密小文件，开销极小）
+     * <p>
+     * 服务器离线（"离线"模式）时进度无法同步到 legado 服务器，
+     * 落地本地以保证重开书籍能恢复到最后的阅读位置。
+     *
+     * @param bookUrl      书籍 URL
+     * @param chapterIndex 当前章节索引
+     * @param chapterTitle 当前章节标题
+     * @param position     章节内位置（光标偏移）
+     */
+    public void saveReadingProgress(String bookUrl, int chapterIndex, String chapterTitle, int position) {
+        if (bookUrl == null) {
+            return;
+        }
+        LocalReadingProgress progress = new LocalReadingProgress();
+        progress.setBookUrl(bookUrl);
+        progress.setDurChapterIndex(chapterIndex);
+        progress.setDurChapterTitle(chapterTitle);
+        progress.setDurChapterPos(position);
+        progress.setDurChapterTime(System.currentTimeMillis());
+        BookCacheStorage.getInstance().saveLocalReadingProgress(progress);
+    }
+
+    /**
+     * 读取本地阅读进度
+     *
+     * @param bookUrl 书籍 URL
+     * @return 本地阅读进度；不存在返回 null
+     */
+    public LocalReadingProgress getReadingProgress(String bookUrl) {
+        if (bookUrl == null) {
+            return null;
+        }
+        return BookCacheStorage.getInstance().loadLocalReadingProgress(bookUrl);
     }
 }

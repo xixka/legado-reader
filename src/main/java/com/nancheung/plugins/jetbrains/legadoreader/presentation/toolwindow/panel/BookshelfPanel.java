@@ -15,6 +15,7 @@ import com.nancheung.plugins.jetbrains.legadoreader.command.CommandBus;
 import com.nancheung.plugins.jetbrains.legadoreader.command.CommandType;
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.CacheBookPayload;
 import com.nancheung.plugins.jetbrains.legadoreader.command.payload.SelectBookPayload;
+import com.nancheung.plugins.jetbrains.legadoreader.common.PluginExecutors;
 import com.nancheung.plugins.jetbrains.legadoreader.service.OfflineCacheService;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.PluginSettingsStorage;
 import com.nancheung.plugins.jetbrains.legadoreader.storage.cache.BookCacheStorage;
@@ -385,7 +386,7 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
      */
     private void loadOfflineBookshelf() {
         offlineMode = true;
-        CompletableFuture.supplyAsync(() -> BookCacheStorage.getInstance().listCachedMetas())
+        CompletableFuture.supplyAsync(() -> BookCacheStorage.getInstance().listCachedMetas(), PluginExecutors.io())
                 .thenAccept(metas -> ApplicationManager.getApplication().invokeLater(() -> {
                     List<BookDTO> books = metas.stream()
                             .map(BookCacheMeta::getBookSnapshot)
@@ -498,6 +499,42 @@ public class BookshelfPanel extends JBPanel<BookshelfPanel> {
     }
 
     // ==================== 公共接口方法 ====================
+
+    /**
+     * 更新书架中某本书的阅读进度显示（内存数据 + "当前章节"列）
+     * <p>
+     * 切章成功后调用。此前进度只同步到服务器，书架"当前章节"列要手动刷新才会变，
+     * 离线模式下更是永远停留在缓存快照，表现为"当前章节不会改变"。
+     * 必须在 EDT 调用。
+     *
+     * @param book          书籍信息
+     * @param chapterIndex  当前章节索引
+     * @param chapterTitle  当前章节标题
+     */
+    public void updateReadingProgress(BookDTO book, int chapterIndex, String chapterTitle) {
+        if (book == null || bookshelf == null) {
+            return;
+        }
+        // 更新内存中的书籍数据（双击打开时使用，离线模式下无需读盘即可恢复正确章节）
+        BookDTO tracked = getBook(book.getAuthor(), book.getName());
+        if (tracked == null) {
+            return;
+        }
+        tracked.setDurChapterIndex(chapterIndex);
+        tracked.setDurChapterTitle(chapterTitle);
+        tracked.setDurChapterTime(System.currentTimeMillis());
+
+        // 更新表格"当前章节"单元格
+        int rowCount = BOOK_SHELF_TABLE_MODEL.getRowCount();
+        for (int row = 0; row < rowCount; row++) {
+            boolean nameMatch = Objects.equals(String.valueOf(BOOK_SHELF_TABLE_MODEL.getValueAt(row, 0)), String.valueOf(book.getName()));
+            boolean authorMatch = Objects.equals(String.valueOf(BOOK_SHELF_TABLE_MODEL.getValueAt(row, 3)), String.valueOf(book.getAuthor()));
+            if (nameMatch && authorMatch) {
+                BOOK_SHELF_TABLE_MODEL.setValueAt(chapterTitle != null ? chapterTitle : "-", row, 1);
+                break;
+            }
+        }
+    }
 
     /**
      * 初始化地址历史记录
