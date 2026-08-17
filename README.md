@@ -84,7 +84,7 @@ Legado Reader是 [开源阅读APP](https://github.com/gedoor/legado) 的Jetbrain
 | 行内模式 显示/隐藏 | 切换行内阅读模式的显示状态 | 鼠标中键双击          |
 | 上一页 | 阅读上一页内容 | Ctrl + 鼠标滚轮上    |
 | 下一页 | 阅读下一页内容 | Ctrl + 鼠标滚轮下    |
-| 老板键 | 一键隐藏/恢复所有阅读痕迹（行内阅读与阅读窗口），快捷键可在IDE键设置中自定义 | Shift + Alt + B |
+| 老板键 | 一键隐藏/恢复所有阅读痕迹（行内阅读与阅读窗口），快捷键可在IDE键设置中自定义 | Shift + Alt + D |
 
 
 ## 使用服务器版阅读([hectorqin/reader](https://github.com/hectorqin/reader)) / 使用`Replit` 免费部署服务版([wy580477/reader-replit](https://github.com/wy580477/reader-replit))

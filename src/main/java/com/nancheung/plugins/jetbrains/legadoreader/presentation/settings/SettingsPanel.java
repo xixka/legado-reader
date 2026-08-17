@@ -363,11 +363,27 @@ public class SettingsPanel {
             double lineHeight = (double) lineHeightSpinner.getValue();
 
             updateFontPreview(new Font(fontName, Font.PLAIN, fontSize),
-                    new JBColor(fontColorButton.getSelectedColor(), fontColorButton.getSelectedColor()),
+                    resolvePreviewColor(),
                     lineHeight);
         } catch (Exception e) {
             log.error("更新字体预览时出错", e);
         }
+    }
+
+    /**
+     * 解析预览用的字体颜色
+     * <p>
+     * refresh() 中字体下拉框 setSelectedItem 会先于颜色按钮 setSelectedColor 触发
+     * updateFontPreview，此时 getSelectedColor() 返回 null；
+     * 若直接用于构造 JBColor 会抛出 IllegalArgumentException。
+     * 因此回退到 ViewModel 中的颜色，仍未取到时使用与默认设置一致的绿色。
+     */
+    private Color resolvePreviewColor() {
+        Color color = fontColorButton.getSelectedColor();
+        if (color == null) {
+            color = viewModel.getFontColor();
+        }
+        return color != null ? color : JBColor.green;
     }
 
     private void updateFontPreview(Font font, Color textBodyFontColor, Double lineHeight) {

@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
  * <p>
  * 触发后立即关闭行内阅读模式并隐藏 Reader 工具窗口；
  * 再次触发则恢复进入老板模式前的阅读状态。
- * 默认快捷键：Shift + Alt + B
+ * 默认快捷键：Shift + Alt + D（左手单手可按，未被 IDEA 默认键位及常见应用占用）
  */
 public class BossKeyAction extends AnAction {
 
