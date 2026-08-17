@@ -10,6 +10,7 @@ Legado Reader是 [开源阅读APP](https://github.com/gedoor/legado) 的Jetbrain
 
 ### Added
 
+- :sparkles: feat: 新增老板键（默认快捷键 Shift+Alt+B），一键隐藏/恢复行内阅读与阅读窗口
 - :sparkles: feat: 新增离线缓存书籍功能，支持后台 AES-256 加密落盘与断点续传
 - :sparkles: feat: 阅读时优先读取本地缓存，支持离线阅读
 - :sparkles: feat: ToolWindow 底部展示缓存进度面板，支持取消缓存任务

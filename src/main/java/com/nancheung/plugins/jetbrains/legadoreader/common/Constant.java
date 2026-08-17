@@ -27,11 +27,21 @@ public interface Constant {
      * action 下一章id
      */
     String PLUGIN_ACTION_NEXT_CHAPTER_ID = PLUGIN_ACTION_ID_PREFIX + ".nextChapter";
-    
+
+    /**
+     * action 老板键id
+     */
+    String PLUGIN_ACTION_BOSS_KEY_ID = PLUGIN_ACTION_ID_PREFIX + ".bossKey";
+
     /**
      * 正文阅读tool bar
      */
     String PLUGIN_TOOL_BAR_ID = PLUGIN_ID_PREFIX + ".bar.textBodyToolbar";
+
+    /**
+     * 阅读工具窗口id（对应 plugin.xml 中 toolWindow 的 id）
+     */
+    String PLUGIN_TOOL_WINDOW_ID = "Reader";
     
     
     /**

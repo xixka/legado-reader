@@ -63,6 +63,14 @@
             <mouse-shortcut keymap="$default" keystroke="control button142"/>
         </action>
 
+        <!-- 新增：老板键（一键隐藏/恢复阅读） -->
+        <action id="com.nancheung.legado-reader.action.bossKey"
+                class="com.nancheung.plugins.jetbrains.legadoreader.action.BossKeyAction"
+                text="老板键 隐藏/恢复阅读"
+                description="一键隐藏所有阅读痕迹（行内阅读与阅读窗口），再次触发恢复">
+            <keyboard-shortcut keymap="$default" first-keystroke="shift alt B"/>
+        </action>
+
         <group id="com.nancheung.legado-reader.bar.textBodyToolbar">
             <action id="com.nancheung.legado-reader.action.backBookshelf" class="com.nancheung.plugins.jetbrains.legadoreader.action.BackBookshelfAction"
                     text="返回书架" icon="/icons/back.svg"/>
